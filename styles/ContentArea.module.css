@@ -1,0 +1,104 @@
+/* styles/main.css */
+.customRounded {
+    border-top-left-radius: 20px;
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+    border-bottom-left-radius: 20px;
+  }
+
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.6);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+    }
+  }
+  
+  .recordingSpinner {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color:#EB5757;
+    position: relative;
+    animation: pulse 1s infinite;
+  }
+  
+  .recordingSpinner::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    right: -6px;
+    bottom: -6px;
+    border: 2px solid #EB5757; /* Outer circle */
+    border-radius: 50%;
+  }
+  
+  
+  .stoppedSpinner {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: #EB5757;
+    position: relative;
+    z-index: 2; /* Ensure the inner circle is above the outer one */
+}
+
+.stoppedSpinner::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    right: -6px;
+    bottom: -6px;
+    background-color: rgba(235, 87, 87, 0.4); /* Filled outer circle with 40% opacity */
+    border-radius: 50%;
+    z-index: 1; /* Ensure the outer circle is below the inner one */
+}
+
+
+.noScrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.noScrollbar {
+  scrollbar-width: none; 
+  -ms-overflow-style: none; 
+}
+
+
+.autowidthinput {
+  width: auto;
+  min-width: 1ch;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+
+.buttonWrapper::before,
+.buttonWrapper::after {
+  content: "";
+  display: block;
+  position: absolute;
+  border: 1px solid #FFC1C1; /* Light red border */
+  border-radius: 8px; /* Rounded corners */
+}
+
+.buttonWrapper::before {
+  top: -8px;
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+}
+
+.buttonWrapper::after {
+  top: -16px;
+  left: -16px;
+  right: -16px;
+  bottom: -16px;
+}
