@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { db } from "@/lib/db";
 import { EmailPreviewSchema, REQUIRED_TEMPLATE_TOKENS } from "@/schemas";
 import { renderTemplate } from "@/lib/utils";
-import { sendTransactionalEmail } from "@/lib/mailchimp";
+import { sendTransactionalEmail } from "@/lib/ses";
 
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -55,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    const rendered = renderTemplate(body, {
+    let rendered = renderTemplate(body, {
       nameOnTemplate: parsed.nameOnTemplate,
       installment: parsed.installment,
       price: parsed.price,
@@ -64,23 +64,73 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       patientName: parsed.patientName,
     });
 
+    // Apply RTL inline styles to content if needed (Gmail-compatible)
+    if (isRTL) {
+      // Apply RTL direction to all div elements that don't already have explicit text-align
+      rendered = rendered.replace(/<div(?![^>]*text-align)([^>]*?)>/g, '<div$1 style="direction: rtl; text-align: right;">');
+      
+      // For divs that already have text-align, add direction: rtl to their existing styles
+      rendered = rendered.replace(/<div([^>]*?)style="([^"]*?)text-align:\s*(left|center|right)([^"]*?)"([^>]*?)>/g, 
+        '<div$1style="direction: rtl; $2text-align: $3$4"$5>');
+      
+      // Apply RTL to any remaining elements that might need it
+      rendered = rendered.replace(/<p(?![^>]*direction)([^>]*?)>/g, '<p$1 style="direction: rtl; text-align: right;">');
+      rendered = rendered.replace(/<span(?![^>]*direction)([^>]*?)>/g, '<span$1 style="direction: rtl;">');
+    }
+
+    // Create proper HTML email structure with enhanced RTL support
+    const htmlEmail = `<!DOCTYPE html>
+<html dir="${isRTL ? 'rtl' : 'ltr'}" lang="${isRTL ? 'he' : 'en'}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${parsed.subject ?? test.name}</title>
+  <style>
+    body {
+      font-family: ${isRTL ? 'Arial, "David", "Times New Roman"' : 'Arial, sans-serif'};
+      direction: ${isRTL ? 'rtl' : 'ltr'};
+      text-align: ${isRTL ? 'right' : 'left'};
+      margin: 0;
+      padding: 20px;
+      background-color: #ffffff;
+      color: #333333;
+      line-height: 1.6;
+    }
+    .email-container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      padding: 20px;
+      direction: ${isRTL ? 'rtl' : 'ltr'};
+      text-align: ${isRTL ? 'right' : 'left'};
+    }
+  </style>
+</head>
+<body style="font-family: ${isRTL ? 'Arial, \'David\', \'Times New Roman\'' : 'Arial, sans-serif'}; direction: ${isRTL ? 'rtl' : 'ltr'}; text-align: ${isRTL ? 'right' : 'left'}; margin: 0; padding: 20px; background-color: #ffffff; color: #333333; line-height: 1.6;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; direction: ${isRTL ? 'rtl' : 'ltr'}; text-align: ${isRTL ? 'right' : 'left'};">
+    ${rendered}
+  </div>
+</body>
+</html>`;
+
     // Prepare recipients: primary recipient + all email copies (no CC, send separate emails)
     const allRecipients = [parsed.toEmail, ...test.emailCopies];
-    const replyToEmail = test.emailCopies.length > 0 ? test.emailCopies[0] : 'noreply@progenetics.co.il';
+    console.log('allRecipients', allRecipients);
+    const replyToEmail = test.emailCopies.length > 0 ? test.emailCopies[0] : 'agents@progenetics.co.il';
     
     try {
-      // Send transactional email via Mailchimp
+      // Send transactional email via Amazon SES
       const emailResult = await sendTransactionalEmail({
         to: allRecipients,
         replyTo: replyToEmail,
         subject: parsed.subject ?? test.name,
-        htmlContent: rendered,
-        fromEmail: 'noreply@progenetics.co.il',
+        htmlContent: htmlEmail,
+        fromEmail: 'agents@progenetics.co.il', // Using verifiable email instead of noreply
         fromName: 'Progenetics'
       });
 
       return res.status(200).json({
-        message: "Email sent successfully via Mailchimp Transactional",
+        message: "Email sent successfully via Amazon SES",
         recipients: allRecipients,
         replyTo: replyToEmail,
         subject: parsed.subject ?? test.name,

@@ -75,129 +75,237 @@ const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavig
         )}
       </div>
 
-      <div className="w-full max-w-3xl">
-        <h2 className="text-xl font-semibold mb-4">Add Test</h2>
+      <div className="w-full max-w-4xl space-y-8">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-3">
+            Create New Test
+          </h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Set up a new medical test with all the necessary details for email communication and patient management.
+          </p>
+        </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Test Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. BRCA" {...field} />
-                  </FormControl>
-                  <FormDescriptionText>Only one name, must be unique.</FormDescriptionText>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            
+            {/* Basic Information */}
+            <div className="border border-gray-200 rounded-lg p-6 bg-white">
+              <h3 className="text-lg font-medium mb-6 text-gray-900 border-b border-gray-100 pb-2">
+                Basic Test Information
+              </h3>
+              <div className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">
+                        Test Name
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g. BRCA, Signatera, etc." 
+                          {...field} 
+                          className="border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        />
+                      </FormControl>
+                      <FormDescriptionText>
+                        Only one name, must be unique across all tests.
+                      </FormDescriptionText>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <FormField
-              control={form.control}
-              name="templateNamesCsv"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Test Name in the template</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Comma delimited, e.g. BRCA, בדיקת BRCA" {...field} />
-                  </FormControl>
-                  <FormDescriptionText>Multiple values allowed. Comma delimited.</FormDescriptionText>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="templateNamesCsv"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">
+                        Test Name in Templates
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g. BRCA, בדיקת BRCA, Genetic Test" 
+                          {...field}
+                          className="border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        />
+                      </FormControl>
+                      <FormDescriptionText>
+                        Multiple variations allowed (comma separated). Used in email templates.
+                      </FormDescriptionText>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Pricing Information */}
+            <div className="border border-gray-200 rounded-lg p-6 bg-white">
+              <h3 className="text-lg font-medium mb-6 text-gray-900 border-b border-gray-100 pb-2">
+                Pricing & Payment Options
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="installmentsCsv"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">
+                        Number of Installments
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g. 1,3,6,12" 
+                          {...field}
+                          className="border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        />
+                      </FormControl>
+                      <FormDescriptionText>
+                        Positive integers only (comma separated).
+                      </FormDescriptionText>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="pricesCsv"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">
+                        Test Prices
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g. 100,250.5,400,1500" 
+                          {...field}
+                          className="border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        />
+                      </FormControl>
+                      <FormDescriptionText>
+                        Numbers ≥ 0 (comma separated). Decimal values allowed.
+                      </FormDescriptionText>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Email Configuration */}
+            <div className="border border-gray-200 rounded-lg p-6 bg-white">
+              <h3 className="text-lg font-medium mb-6 text-gray-900 border-b border-gray-100 pb-2">
+                Email Configuration
+              </h3>
               <FormField
                 control={form.control}
-                name="installmentsCsv"
+                name="emailCopiesCsv"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>No. of installments</FormLabel>
+                    <FormLabel className="text-sm font-medium text-gray-700">
+                      CC Email Addresses
+                    </FormLabel>
                     <FormControl>
-                      <Input placeholder="Comma delimited integers, e.g. 1,3,6" {...field} />
+                      <Input 
+                        placeholder="e.g. admin@clinic.com, supervisor@hospital.com" 
+                        {...field}
+                        className="border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      />
                     </FormControl>
-                    <FormDescriptionText>Positive integers. Comma delimited.</FormDescriptionText>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="pricesCsv"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Prices</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Comma delimited numbers, e.g. 100,250.5,400" {...field} />
-                    </FormControl>
-                    <FormDescriptionText>Numbers ≥ 0. Comma delimited.</FormDescriptionText>
+                    <FormDescriptionText>
+                      These emails will be copied on all patient communications (comma separated).
+                    </FormDescriptionText>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="emailCopiesCsv"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email copy</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Comma delimited emails, e.g. a@x.com,b@y.com" {...field} />
-                  </FormControl>
-                  <FormDescriptionText>We will CC these emails when sending.</FormDescriptionText>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* External Links */}
+            <div className="border border-gray-200 rounded-lg p-6 bg-white">
+              <h3 className="text-lg font-medium mb-6 text-gray-900 border-b border-gray-100 pb-2">
+                External Links & Forms
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="icreditLink"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">
+                        iCredit Payment Link
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="https://icredit.example.com/payment" 
+                          {...field}
+                          className="border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        />
+                      </FormControl>
+                      <FormDescriptionText>
+                        Must be a valid URL starting with http:// or https://
+                      </FormDescriptionText>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <FormField
-                control={form.control}
-                name="icreditLink"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>iCredit link</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} />
-                    </FormControl>
-                    <FormDescriptionText>Must be a valid URL starting with http/https.</FormDescriptionText>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="iformsLink"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>iForms link</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} />
-                    </FormControl>
-                    <FormDescriptionText>Must be a valid URL starting with http/https.</FormDescriptionText>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="iformsLink"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">
+                        iForms Document Link
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="https://iforms.example.com/document" 
+                          {...field}
+                          className="border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        />
+                      </FormControl>
+                      <FormDescriptionText>
+                        Must be a valid URL starting with http:// or https://
+                      </FormDescriptionText>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             <FormError message={error} />
-            <FormSuccess message={success} />
+            {success && (
+              <div className="bg-green-50 border border-green-200 rounded p-4">
+                <h3 className="text-sm font-medium text-green-800">Test Created Successfully</h3>
+                <div className="mt-1 text-sm text-green-700">
+                  {success}
+                </div>
+                <p className="mt-2 text-sm text-green-600">
+                  You can now create email templates for this test.
+                </p>
+              </div>
+            )}
 
-            <div className="flex gap-3">
-              <Button type="submit" disabled={submitting}>
-                {submitting ? 'Saving...' : 'Save Test'}
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <Button 
+                type="submit" 
+                disabled={submitting}
+              >
+                {submitting ? 'Creating Test...' : 'Create Test'}
               </Button>
-              <Button type="button" variant="outline" onClick={() => form.reset()} disabled={submitting}>
-                Reset
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => form.reset()} 
+                disabled={submitting}
+              >
+                Reset Form
               </Button>
             </div>
           </form>

@@ -9,12 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.891.0",
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
     "@heroicons/react": "^2.1.5",
     "@hookform/resolvers": "^3.4.0",
-    "@mailchimp/mailchimp_marketing": "^3.0.80",
-    "@mailchimp/mailchimp_transactional": "^1.0.59",
     "@mui/material": "^5.15.20",
     "@mui/x-data-grid": "^7.7.0",
     "@prisma/client": "^5.14.0",
@@ -52,7 +51,6 @@
     "@types/bcrypt": "^5.0.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/formidable": "^3.4.5",
-    "@types/mailchimp__mailchimp_marketing": "^3.0.21",
     "@types/multer": "^1.4.11",
     "@types/node": "^20",
     "@types/react": "^18",
