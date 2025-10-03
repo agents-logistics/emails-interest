@@ -44,15 +44,22 @@ const splitCsv = (value: string) =>
     .map((v) => v.trim())
     .filter((v) => v.length > 0);
 
+// Schema for individual pricing option
+export const PricingOptionSchema = z.object({
+  installment: z.number().int().positive({ message: "Installment must be a positive integer" }),
+  price: z.number().nonnegative({ message: "Price must be >= 0" }),
+  icreditText: z.string().min(1, { message: "iCredit link text is required" }),
+  icreditLink: z.string().url({ message: "iCredit link must be a valid URL" }).refine(u => /^https?:\/\//i.test(u), { message: "iCredit link must start with http or https" }),
+  iformsText: z.string().min(1, { message: "iForms link text is required" }),
+  iformsLink: z.string().url({ message: "iForms link must be a valid URL" }).refine(u => /^https?:\/\//i.test(u), { message: "iForms link must start with http or https" }),
+});
+
 export const TestCreateSchema = z
   .object({
     name: z.string().trim().min(1, { message: "Test name is required" }),
     templateNamesCsv: z.string().min(1, { message: "At least one template name is required" }),
-    installmentsCsv: z.string().min(1, { message: "At least one installment is required" }),
-    pricesCsv: z.string().min(1, { message: "At least one price is required" }),
     emailCopiesCsv: z.string().min(1, { message: "At least one email copy is required" }),
-    icreditLink: z.string().url({ message: "iCredit link must be a valid URL" }).refine(u => /^https?:\/\//i.test(u), { message: "iCredit link must start with http or https" }),
-    iformsLink: z.string().url({ message: "iForms link must be a valid URL" }).refine(u => /^https?:\/\//i.test(u), { message: "iForms link must start with http or https" }),
+    pricingOptions: z.array(PricingOptionSchema).min(1, { message: "At least one pricing option is required" }),
   })
   .transform((input) => {
     const templateNames = splitCsv(input.templateNamesCsv);
@@ -63,30 +70,6 @@ export const TestCreateSchema = z
         message: "At least one template name is required",
       }]);
     }
-
-    const installments = splitCsv(input.installmentsCsv).map((v) => {
-      const n = Number(v);
-      if (!Number.isInteger(n) || n < 1) {
-        throw new z.ZodError([{
-          code: "custom",
-          path: ["installmentsCsv"],
-          message: "Installments must be positive integers",
-        }]);
-      }
-      return n;
-    });
-
-    const prices = splitCsv(input.pricesCsv).map((v) => {
-      const n = Number(v);
-      if (!isFinite(n) || n < 0) {
-        throw new z.ZodError([{
-          code: "custom",
-          path: ["pricesCsv"],
-          message: "Prices must be numbers >= 0",
-        }]);
-      }
-      return n;
-    });
 
     const emailCopies = splitCsv(input.emailCopiesCsv);
     emailCopies.forEach((email) => {
@@ -103,11 +86,8 @@ export const TestCreateSchema = z
     return {
       name: input.name.trim(),
       templateNames: Array.from(new Set(templateNames)),
-      installments: Array.from(new Set(installments)).sort((a, b) => a - b),
-      prices: Array.from(new Set(prices)).sort((a, b) => a - b),
       emailCopies: Array.from(new Set(emailCopies)),
-      icreditLink: input.icreditLink,
-      iformsLink: input.iformsLink,
+      pricingOptions: input.pricingOptions,
     };
   });
 
@@ -115,11 +95,7 @@ export type TestCreateInput = z.infer<typeof TestCreateSchema>;
 
 export const TemplateCreateSchema = z.object({
   testId: z.string().min(1, { message: "testId is required" }),
-  body: z.string().min(1, { message: "Template body is required" }).refine((body) => {
-    return REQUIRED_TEMPLATE_TOKENS.every((t) => body.includes(t));
-  }, {
-    message: `Template must include all placeholders: ${REQUIRED_TEMPLATE_TOKENS.join(", ")}`,
-  }),
+  body: z.string().min(1, { message: "Template body is required" }),
   isRTL: z.boolean().optional().default(true),
 });
 
@@ -141,15 +117,6 @@ export const EmailPreviewSchema = z
   .refine((d) => !!(d.templateId || d.body), {
     message: "Either templateId or body must be provided",
     path: ["templateId"],
-  })
-  .refine((d) => {
-    if (d.body) {
-      return REQUIRED_TEMPLATE_TOKENS.every((t) => d.body!.includes(t));
-    }
-    return true;
-  }, {
-    message: `When passing raw body, it must include: ${REQUIRED_TEMPLATE_TOKENS.join(", ")}`,
-    path: ["body"],
   });
 
 export type EmailPreviewInput = z.infer<typeof EmailPreviewSchema>;

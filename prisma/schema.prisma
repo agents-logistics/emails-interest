@@ -197,16 +197,31 @@ model PatientTest {
   id            String     @id @default(cuid())
   name          String     @unique
   templateNames String[]
-  installments  Int[]
-  prices        Float[]
   emailCopies   String[]
-  icreditLink   String
-  iformsLink    String
 
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
   templates     EmailTemplate[]
+  pricingOptions TestPricingOption[]
+}
+
+model TestPricingOption {
+  id            String      @id @default(cuid())
+  testId        String
+  installment   Int
+  price         Float
+  icreditText   String
+  icreditLink   String
+  iformsText    String
+  iformsLink    String
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  test          PatientTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@index([testId])
 }
 
 model EmailTemplate {

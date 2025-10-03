@@ -4,6 +4,7 @@ import React, { FC, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import Image from 'next/image';
 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -17,26 +18,57 @@ type ContentAreaProps = {
   showNavigation: boolean;
 };
 
-type TestFormValues = z.input<typeof TestCreateSchema>;
+type PricingOption = {
+  installment: number | '';
+  price: number | '';
+  icreditText: string;
+  icreditLink: string;
+  iformsText: string;
+  iformsLink: string;
+};
+
+// Custom schema for add form (without pricingOptions validation since we handle it separately)
+const AddTestSchema = z.object({
+  name: z.string().trim().min(1, { message: "Test name is required" }),
+  templateNamesCsv: z.string().min(1, { message: "At least one template name is required" }),
+  emailCopiesCsv: z.string().min(1, { message: "At least one email copy is required" }),
+});
+
+type TestFormValues = z.infer<typeof AddTestSchema>;
 
 const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigation }) => {
   const form = useForm<TestFormValues>({
-    resolver: zodResolver(TestCreateSchema),
+    resolver: zodResolver(AddTestSchema),
     defaultValues: {
       name: '',
       templateNamesCsv: '',
-      installmentsCsv: '',
-      pricesCsv: '',
       emailCopiesCsv: '',
-      icreditLink: '',
-      iformsLink: '',
     },
     mode: 'onChange',
   });
 
+  const [pricingOptions, setPricingOptions] = useState<PricingOption[]>([
+    { installment: '', price: '', icreditText: '', icreditLink: '', iformsText: '', iformsLink: '' }
+  ]);
   const [error, setError] = useState<string | undefined>();
   const [success, setSuccess] = useState<string | undefined>();
   const [submitting, setSubmitting] = useState(false);
+
+  const addPricingOption = () => {
+    setPricingOptions([...pricingOptions, { installment: '', price: '', icreditText: '', icreditLink: '', iformsText: '', iformsLink: '' }]);
+  };
+
+  const removePricingOption = (index: number) => {
+    if (pricingOptions.length > 1) {
+      setPricingOptions(pricingOptions.filter((_, i) => i !== index));
+    }
+  };
+
+  const updatePricingOption = (index: number, field: keyof PricingOption, value: any) => {
+    const updated = [...pricingOptions];
+    updated[index] = { ...updated[index], [field]: value };
+    setPricingOptions(updated);
+  };
 
   const onSubmit = async (values: TestFormValues) => {
     try {
@@ -44,10 +76,35 @@ const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavig
       setError(undefined);
       setSuccess(undefined);
 
+      // Validate pricing options
+      const validatedOptions = pricingOptions.map((opt, idx) => {
+        if (opt.installment === '' || opt.price === '') {
+          throw new Error(`Pricing option ${idx + 1}: Installment and Price are required`);
+        }
+        if (!opt.icreditText || !opt.icreditLink || !opt.iformsText || !opt.iformsLink) {
+          throw new Error(`Pricing option ${idx + 1}: All link texts and URLs are required`);
+        }
+        return {
+          installment: Number(opt.installment),
+          price: Number(opt.price),
+          icreditText: opt.icreditText,
+          icreditLink: opt.icreditLink,
+          iformsText: opt.iformsText,
+          iformsLink: opt.iformsLink,
+        };
+      });
+
+      const payload = {
+        name: values.name,
+        templateNamesCsv: values.templateNamesCsv,
+        emailCopiesCsv: values.emailCopiesCsv,
+        pricingOptions: validatedOptions,
+      };
+
       const res = await fetch('/api/tests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -58,6 +115,7 @@ const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavig
 
       setSuccess('Test saved successfully');
       form.reset();
+      setPricingOptions([{ installment: '', price: '', icreditText: '', icreditLink: '', iformsText: '', iformsLink: '' }]);
     } catch (e: any) {
       setError(e?.message || 'Unexpected error');
     } finally {
@@ -144,55 +202,143 @@ const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavig
 
             {/* Pricing Information */}
             <div className="border border-gray-200 rounded-lg p-6 bg-white">
-              <h3 className="text-lg font-medium mb-6 text-gray-900 border-b border-gray-100 pb-2">
-                Pricing & Payment Options
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="installmentsCsv"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium text-gray-700">
-                        Number of Installments
-                      </FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="e.g. 1,3,6,12" 
-                          {...field}
-                          className="border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        />
-                      </FormControl>
-                      <FormDescriptionText>
-                        Positive integers only (comma separated).
-                      </FormDescriptionText>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="flex items-center justify-between mb-6 border-b border-gray-100 pb-2">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Pricing & Payment Options
+                </h3>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={addPricingOption}
+                  className="flex items-center gap-2"
+                >
+                  <Image src="/images/plus.svg" alt="Add" width={16} height={16} />
+                  Add Option
+                </Button>
+              </div>
 
-                <FormField
-                  control={form.control}
-                  name="pricesCsv"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium text-gray-700">
-                        Test Prices
-                      </FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="e.g. 100,250.5,400,1500" 
-                          {...field}
-                          className="border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              <div className="space-y-6">
+                {pricingOptions.map((option, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50 relative">
+                    {pricingOptions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removePricingOption(index)}
+                        className="absolute top-2 right-2 text-red-600 hover:text-red-800"
+                        title="Remove this pricing option"
+                      >
+                        <Image src="/images/delete.svg" alt="Remove" width={20} height={20} />
+                      </button>
+                    )}
+                    
+                    <h4 className="text-sm font-medium text-gray-700 mb-4">
+                      Pricing Option {index + 1}
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Number of Installments
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder="e.g. 1, 3, 6, 12"
+                          value={option.installment}
+                          onChange={(e) => updatePricingOption(index, 'installment', e.target.value ? Number(e.target.value) : '')}
+                          className="border-gray-300 rounded-md px-3 py-2"
+                          min="1"
+                          step="1"
                         />
-                      </FormControl>
-                      <FormDescriptionText>
-                        Numbers ≥ 0 (comma separated). Decimal values allowed.
-                      </FormDescriptionText>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <p className="text-[0.8rem] text-muted-foreground mt-1">
+                          Positive integer only
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Price
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder="e.g. 100, 250.50"
+                          value={option.price}
+                          onChange={(e) => updatePricingOption(index, 'price', e.target.value ? Number(e.target.value) : '')}
+                          className="border-gray-300 rounded-md px-3 py-2"
+                          min="0"
+                          step="0.01"
+                        />
+                        <p className="text-[0.8rem] text-muted-foreground mt-1">
+                          Decimal values allowed
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          iCredit Link Text
+                        </label>
+                        <Input
+                          type="text"
+                          placeholder="e.g. Click here to pay"
+                          value={option.icreditText}
+                          onChange={(e) => updatePricingOption(index, 'icreditText', e.target.value)}
+                          className="border-gray-300 rounded-md px-3 py-2"
+                        />
+                        <p className="text-[0.8rem] text-muted-foreground mt-1">
+                          Text shown in email (e.g. "here")
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          iCredit Payment Link URL
+                        </label>
+                        <Input
+                          type="url"
+                          placeholder="https://icredit.example.com/payment"
+                          value={option.icreditLink}
+                          onChange={(e) => updatePricingOption(index, 'icreditLink', e.target.value)}
+                          className="border-gray-300 rounded-md px-3 py-2"
+                        />
+                        <p className="text-[0.8rem] text-muted-foreground mt-1">
+                          Valid URL required
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          iForms Link Text
+                        </label>
+                        <Input
+                          type="text"
+                          placeholder="e.g. Sign the form"
+                          value={option.iformsText}
+                          onChange={(e) => updatePricingOption(index, 'iformsText', e.target.value)}
+                          className="border-gray-300 rounded-md px-3 py-2"
+                        />
+                        <p className="text-[0.8rem] text-muted-foreground mt-1">
+                          Text shown in email (e.g. "here")
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          iForms Document Link URL
+                        </label>
+                        <Input
+                          type="url"
+                          placeholder="https://iforms.example.com/document"
+                          value={option.iformsLink}
+                          onChange={(e) => updatePricingOption(index, 'iformsLink', e.target.value)}
+                          className="border-gray-300 rounded-md px-3 py-2"
+                        />
+                        <p className="text-[0.8rem] text-muted-foreground mt-1">
+                          Valid URL required
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -223,60 +369,6 @@ const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavig
                   </FormItem>
                 )}
               />
-            </div>
-
-            {/* External Links */}
-            <div className="border border-gray-200 rounded-lg p-6 bg-white">
-              <h3 className="text-lg font-medium mb-6 text-gray-900 border-b border-gray-100 pb-2">
-                External Links & Forms
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="icreditLink"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium text-gray-700">
-                        iCredit Payment Link
-                      </FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="https://icredit.example.com/payment" 
-                          {...field}
-                          className="border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        />
-                      </FormControl>
-                      <FormDescriptionText>
-                        Must be a valid URL starting with http:// or https://
-                      </FormDescriptionText>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="iformsLink"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-sm font-medium text-gray-700">
-                        iForms Document Link
-                      </FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="https://iforms.example.com/document" 
-                          {...field}
-                          className="border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        />
-                      </FormControl>
-                      <FormDescriptionText>
-                        Must be a valid URL starting with http:// or https://
-                      </FormDescriptionText>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
             </div>
 
             <FormError message={error} />

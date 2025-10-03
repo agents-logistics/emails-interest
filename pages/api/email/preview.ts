@@ -10,22 +10,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const parsed = EmailPreviewSchema.parse(req.body);
+    
+    // Get link texts and URLs from request body
+    const icreditText = (req.body as any).icreditText as string;
+    const icreditLink = (req.body as any).icreditLink as string;
+    const iformsText = (req.body as any).iformsText as string;
+    const iformsLink = (req.body as any).iformsLink as string;
+
+    if (!icreditText || !icreditLink || !iformsText || !iformsLink) {
+      return res.status(400).json({ error: "All link texts and URLs are required" });
+    }
 
     // Fetch the test and validate selections
     const test = await db.patientTest.findUnique({
       where: { id: parsed.testId },
+      include: {
+        pricingOptions: true
+      }
     });
     if (!test) return res.status(400).json({ error: "Invalid testId" });
 
-    // Validate nameOnTemplate, installment, price against the chosen test
+    // Validate nameOnTemplate against the chosen test
     if (!test.templateNames.includes(parsed.nameOnTemplate)) {
       return res.status(400).json({ error: "nameOnTemplate not in allowed list for this test" });
     }
-    if (!test.installments.includes(parsed.installment)) {
-      return res.status(400).json({ error: "installment not in allowed list for this test" });
-    }
-    if (!test.prices.includes(parsed.price)) {
-      return res.status(400).json({ error: "price not in allowed list for this test" });
+    
+    // Validate that the combination of installment and price exists in pricing options
+    const pricingOption = test.pricingOptions.find(
+      opt => opt.installment === parsed.installment && opt.price === parsed.price
+    );
+    if (!pricingOption) {
+      return res.status(400).json({ error: "Invalid combination of installment and price for this test" });
     }
 
     // Load template body
@@ -42,20 +57,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Raw body preview (e.g. when creating a new template)
       body = parsed.body!;
       isRTL = parsed.isRTL ?? true;
-      const hasAllTokens = REQUIRED_TEMPLATE_TOKENS.every((t) => body.includes(t));
-      if (!hasAllTokens) {
-        return res.status(400).json({
-          error: `Template must include: ${REQUIRED_TEMPLATE_TOKENS.join(", ")}`,
-        });
-      }
+      // No validation - placeholders are optional
     }
 
     const preview = renderTemplate(body, {
       nameOnTemplate: parsed.nameOnTemplate,
       installment: parsed.installment,
       price: parsed.price,
-      icreditLink: test.icreditLink,
-      iformsLink: test.iformsLink,
+      icreditText: icreditText,
+      icreditLink: icreditLink,
+      iformsText: iformsText,
+      iformsLink: iformsLink,
       patientName: parsed.patientName,
     });
 

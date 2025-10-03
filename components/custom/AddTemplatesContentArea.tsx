@@ -12,15 +12,22 @@ type ContentAreaProps = {
   showNavigation: boolean;
 };
 
+type PricingOption = {
+  id: string;
+  installment: number;
+  price: number;
+  icreditText: string;
+  icreditLink: string;
+  iformsText: string;
+  iformsLink: string;
+};
+
 type PatientTest = {
   id: string;
   name: string;
   templateNames: string[];
-  installments: number[];
-  prices: number[];
   emailCopies: string[];
-  icreditLink: string;
-  iformsLink: string;
+  pricingOptions: PricingOption[];
 };
 
 type ApiListTestsResp = { tests: PatientTest[] };
@@ -35,8 +42,7 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
 
   // Preview controls (let user pick values from selected test)
   const [previewNameOnTemplate, setPreviewNameOnTemplate] = useState<string>('');
-  const [previewInstallment, setPreviewInstallment] = useState<number | ''>('');
-  const [previewPrice, setPreviewPrice] = useState<number | ''>('');
+  const [previewPricingOptionId, setPreviewPricingOptionId] = useState<string>('');
   const [previewPatientName, setPreviewPatientName] = useState<string>('');
 
   // UI feedback
@@ -52,11 +58,24 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
   const [fontSize, setFontSize] = useState<number>(14);
   const [fontColor, setFontColor] = useState<string>('#000000');
   const [backgroundColor, setBackgroundColor] = useState<string>('#ffffff');
+  
+  // Link dialog state
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkText, setLinkText] = useState('');
+  const [isEditingLink, setIsEditingLink] = useState(false);
+  const [savedSelection, setSavedSelection] = useState<Range | null>(null);
 
   const selectedTest = useMemo(
     () => tests.find((t) => t.id === selectedTestId),
     [tests, selectedTestId]
   );
+
+  // Get selected pricing option for preview
+  const selectedPreviewPricingOption = useMemo(() => {
+    if (!selectedTest || !previewPricingOptionId) return null;
+    return selectedTest.pricingOptions.find(opt => opt.id === previewPricingOptionId);
+  }, [selectedTest, previewPricingOptionId]);
 
   useEffect(() => {
     const load = async () => {
@@ -83,8 +102,7 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
     const loadTemplateForTest = async () => {
       if (selectedTest) {
         setPreviewNameOnTemplate(selectedTest.templateNames[0] || '');
-        setPreviewInstallment(selectedTest.installments[0] ?? '');
-        setPreviewPrice(selectedTest.prices[0] ?? '');
+        setPreviewPricingOptionId(selectedTest.pricingOptions[0]?.id || '');
 
         // Check if template already exists for this test
         try {
@@ -109,8 +127,7 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
         }
       } else {
         setPreviewNameOnTemplate('');
-        setPreviewInstallment('');
-        setPreviewPrice('');
+        setPreviewPricingOptionId('');
         setBody('');
         setIsRTL(true);
         setExistingTemplateId('');
@@ -145,6 +162,14 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
     const htmlContent = body;
     return REQUIRED_TEMPLATE_TOKENS.every((t) => 
       textContent.includes(t) || htmlContent.includes(t)
+    );
+  }, [body]);
+  
+  const missingTokens = useMemo(() => {
+    const textContent = editorRef.current?.textContent || body;
+    const htmlContent = body;
+    return REQUIRED_TEMPLATE_TOKENS.filter((t) => 
+      !textContent.includes(t) && !htmlContent.includes(t)
     );
   }, [body]);
 
@@ -285,6 +310,131 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
     }
   };
 
+  const openLinkDialog = () => {
+    if (!editorRef.current) return;
+    
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      alert('Please select text first before adding a link');
+      return;
+    }
+    
+    const range = selection.getRangeAt(0);
+    setSavedSelection(range.cloneRange());
+    
+    // Check if selected text is already a link
+    let parentElement = range.commonAncestorContainer as Node;
+    if (parentElement.nodeType === Node.TEXT_NODE) {
+      parentElement = parentElement.parentNode!;
+    }
+    
+    const linkElement = (parentElement as Element).closest('a');
+    if (linkElement) {
+      // Editing existing link
+      setIsEditingLink(true);
+      setLinkText(linkElement.textContent || '');
+      setLinkUrl(linkElement.getAttribute('href') || '');
+    } else {
+      // Creating new link
+      setIsEditingLink(false);
+      const selectedText = range.toString();
+      if (!selectedText) {
+        alert('Please select text first before adding a link');
+        return;
+      }
+      setLinkText(selectedText);
+      setLinkUrl('');
+    }
+    
+    setShowLinkDialog(true);
+  };
+
+  const insertLink = () => {
+    if (!linkUrl.trim()) {
+      alert('Please enter a URL');
+      return;
+    }
+    
+    // Validate URL format
+    let finalUrl = linkUrl.trim();
+    if (!finalUrl.match(/^https?:\/\//i)) {
+      finalUrl = 'https://' + finalUrl;
+    }
+    
+    try {
+      new URL(finalUrl);
+    } catch (e) {
+      alert('Please enter a valid URL');
+      return;
+    }
+    
+    if (!editorRef.current) return;
+    
+    editorRef.current.focus();
+    
+    // Restore saved selection
+    if (savedSelection) {
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(savedSelection);
+        
+        // Create the link
+        const anchor = document.createElement('a');
+        anchor.href = finalUrl;
+        anchor.textContent = linkText || finalUrl;
+        anchor.style.color = '#0066cc';
+        anchor.style.textDecoration = 'underline';
+        anchor.target = '_blank'; // Open in new tab
+        anchor.rel = 'noopener noreferrer'; // Security best practice
+        
+        savedSelection.deleteContents();
+        savedSelection.insertNode(anchor);
+        
+        // Move cursor after the link
+        savedSelection.setStartAfter(anchor);
+        savedSelection.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(savedSelection);
+        
+        updateBodyFromEditor();
+      }
+    }
+    
+    // Reset state
+    setShowLinkDialog(false);
+    setLinkUrl('');
+    setLinkText('');
+    setIsEditingLink(false);
+    setSavedSelection(null);
+  };
+
+  const removeLink = () => {
+    if (!editorRef.current) return;
+    
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      alert('Please place cursor on a link first');
+      return;
+    }
+    
+    const range = selection.getRangeAt(0);
+    let parentElement = range.commonAncestorContainer as Node;
+    if (parentElement.nodeType === Node.TEXT_NODE) {
+      parentElement = parentElement.parentNode!;
+    }
+    
+    const linkElement = (parentElement as Element).closest('a');
+    if (linkElement) {
+      // Replace link with its text content
+      const textNode = document.createTextNode(linkElement.textContent || '');
+      linkElement.parentNode?.replaceChild(textNode, linkElement);
+      updateBodyFromEditor();
+    } else {
+      alert('No link found at cursor position');
+    }
+  };
+
   const handlePreview = async () => {
     setError(undefined);
     setSuccess(undefined);
@@ -295,12 +445,12 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
       setError('Please select a test');
       return;
     }
-    if (!allTokensPresent) {
-      setError(`Template must include all placeholders: ${REQUIRED_TEMPLATE_TOKENS.join(', ')}`);
+    if (!previewNameOnTemplate || !previewPricingOptionId || !previewPatientName) {
+      setError('Please pick preview values for name, pricing option, and patient name');
       return;
     }
-    if (!previewNameOnTemplate || previewInstallment === '' || previewPrice === '' || !previewPatientName) {
-      setError('Please pick preview values for name, patient name, installment, and price');
+    if (!selectedPreviewPricingOption) {
+      setError('Please select a valid pricing option');
       return;
     }
 
@@ -314,10 +464,14 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
             body,
             isRTL,
             nameOnTemplate: previewNameOnTemplate,
-            installment: Number(previewInstallment),
-            price: Number(previewPrice),
+            installment: selectedPreviewPricingOption.installment,
+            price: selectedPreviewPricingOption.price,
             patientName: previewPatientName,
             toEmail: 'preview@example.com', // preview only
+            icreditText: selectedPreviewPricingOption.icreditText,
+            icreditLink: selectedPreviewPricingOption.icreditLink,
+            iformsText: selectedPreviewPricingOption.iformsText,
+            iformsLink: selectedPreviewPricingOption.iformsLink,
           }),
       });
       const data = await res.json();
@@ -340,10 +494,6 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
 
     if (!selectedTest) {
       setError('Please select a test');
-      return;
-    }
-    if (!allTokensPresent) {
-      setError(`Template must include all placeholders: ${REQUIRED_TEMPLATE_TOKENS.join(', ')}`);
       return;
     }
     try {
@@ -634,13 +784,36 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
                     </button>
                   </div>
 
+                  {/* Link Tools */}
+                  <div className="flex items-center gap-1 bg-white rounded px-3 py-2 border border-gray-300">
+                    <span className="text-xs font-medium text-gray-700 mr-2">Link:</span>
+                    <button
+                      type="button"
+                      className="px-3 py-1 text-xs bg-blue-600 text-white border border-blue-700 rounded hover:bg-blue-700 transition-colors"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={openLinkDialog}
+                      title="Add or Edit Link"
+                    >
+                      🔗 Add Link
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={removeLink}
+                      title="Remove Link"
+                    >
+                      Unlink
+                    </button>
+                  </div>
+
                 </div>
               </div>
 
               {/* Token Insertion Section */}
               <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">
-                  Insert Placeholders (Required)
+                  Insert Placeholders (Optional)
                 </h4>
                 <div className="flex gap-2 flex-wrap">
                   {REQUIRED_TEMPLATE_TOKENS.map((token) => (
@@ -657,7 +830,7 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
                   ))}
                 </div>
                 <p className="text-xs text-gray-600 mt-2">
-                  Click to insert placeholders into your template. All placeholders above are required.
+                  Click to insert placeholders into your template. Placeholders will be replaced with actual values when sending emails.
                 </p>
               </div>
 
@@ -679,7 +852,7 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
                   onPaste={(e) => {
                     setTimeout(updateBodyFromEditor, 10);
                   }}
-                  data-placeholder={`Write your email template here...\n\nRequired placeholders: ${REQUIRED_TEMPLATE_TOKENS.join(', ')}\n\nExample:\nשלום #nameontemplate,\nשם מטופל: #nameofpatient\nמספר תשלומים: #numinstallaments\nמחיר: #price\nתשלום: #icreditlink\nטופס: #iformslink`}
+                  data-placeholder={`Write your email template here...\n\nAvailable placeholders: ${REQUIRED_TEMPLATE_TOKENS.join(', ')}\n\nExample:\nשלום #nameontemplate,\nשם מטופל: #nameofpatient\nמספר תשלומים: #numinstallaments\nמחיר: #price\nתשלום: #icreditlink\nטופס: #iformslink`}
                 />
 
                 <style jsx>{`
@@ -695,10 +868,13 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
                   }
                 `}</style>
 
-                {!allTokensPresent && (
-                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
-                    <p className="text-sm text-red-800">
-                      Missing required placeholders: <span className="font-mono ml-1">{REQUIRED_TEMPLATE_TOKENS.filter(token => !body.includes(token)).join(', ')}</span>
+                {missingTokens.length > 0 && body.trim() && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                    <p className="text-sm text-blue-800">
+                      <strong>Info:</strong> Not using these placeholders: <span className="font-mono ml-1">{missingTokens.join(', ')}</span>
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Placeholders are optional. You can add them if needed.
                     </p>
                   </div>
                 )}
@@ -714,7 +890,7 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
                 <p className="text-sm text-gray-600 mb-4">
                   Set sample values to test how your template will look when sent to patients
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2 text-gray-700">
                       Name on Template
@@ -731,31 +907,24 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2 text-gray-700">
-                      Installments
+                      Pricing Option
                     </label>
                     <select
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
-                      value={previewInstallment}
-                      onChange={(e) => setPreviewInstallment(Number(e.target.value))}
+                      value={previewPricingOptionId}
+                      onChange={(e) => setPreviewPricingOptionId(e.target.value)}
                     >
-                      {selectedTest.installments.map((n) => (
-                        <option key={n} value={n}>{n}</option>
+                      {selectedTest.pricingOptions.map((opt, index) => (
+                        <option key={opt.id} value={opt.id}>
+                          Option {index + 1} ({opt.installment} × {opt.price} ₪)
+                        </option>
                       ))}
                     </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-700">
-                      Price
-                    </label>
-                    <select
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
-                      value={previewPrice}
-                      onChange={(e) => setPreviewPrice(Number(e.target.value))}
-                    >
-                      {selectedTest.prices.map((p) => (
-                        <option key={p} value={p}>{p}</option>
-                      ))}
-                    </select>
+                    {selectedPreviewPricingOption && (
+                      <p className="text-[0.8rem] text-gray-600 mt-1">
+                        {selectedPreviewPricingOption.installment} payment{selectedPreviewPricingOption.installment !== 1 ? 's' : ''} of {(selectedPreviewPricingOption.price / selectedPreviewPricingOption.installment).toFixed(2)} ₪
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2 text-gray-700">
@@ -785,14 +954,14 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
             <div className="flex flex-col sm:flex-row gap-3">
               <Button 
                 onClick={handlePreview} 
-                disabled={previewing || !selectedTest || !allTokensPresent}
+                disabled={previewing || !selectedTest || !body.trim()}
                 variant="outline"
               >
                 {previewing ? 'Generating...' : 'Preview Template'}
               </Button>
               <Button 
                 onClick={handleSave} 
-                disabled={saving || !selectedTest || !allTokensPresent}
+                disabled={saving || !selectedTest || !body.trim()}
               >
                 {saving ? 'Saving...' : (existingTemplateId ? 'Update Template' : 'Save Template')}
               </Button>
@@ -812,6 +981,75 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
           </>
         )}
       </div>
+
+      {/* Link Dialog Modal */}
+      {showLinkDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowLinkDialog(false)}>
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {isEditingLink ? 'Edit Link' : 'Insert Link'}
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Link Text
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Enter link text"
+                  value={linkText}
+                  onChange={(e) => setLinkText(e.target.value)}
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500 mt-1">The text that will be displayed</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  URL
+                </label>
+                <Input
+                  type="text"
+                  placeholder="https://example.com"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  className="w-full"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      insertLink();
+                    }
+                  }}
+                />
+                <p className="text-xs text-gray-500 mt-1">The URL the link will point to</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                onClick={insertLink}
+                className="flex-1"
+              >
+                {isEditingLink ? 'Update Link' : 'Insert Link'}
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowLinkDialog(false);
+                  setLinkUrl('');
+                  setLinkText('');
+                  setIsEditingLink(false);
+                  setSavedSelection(null);
+                }}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
