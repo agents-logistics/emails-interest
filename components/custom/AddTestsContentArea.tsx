@@ -285,7 +285,7 @@ const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavig
                           className="border-gray-300 rounded-md px-3 py-2"
                         />
                         <p className="text-[0.8rem] text-muted-foreground mt-1">
-                          Text shown in email (e.g. "here")
+                          Text shown in email (e.g. &quot;here&quot;)
                         </p>
                       </div>
 
@@ -317,7 +317,7 @@ const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavig
                           className="border-gray-300 rounded-md px-3 py-2"
                         />
                         <p className="text-[0.8rem] text-muted-foreground mt-1">
-                          Text shown in email (e.g. "here")
+                          Text shown in email (e.g. &quot;here&quot;)
                         </p>
                       </div>
 

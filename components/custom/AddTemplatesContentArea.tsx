@@ -140,6 +140,7 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
   // Update editor when body changes (e.g., when loading template)
   useEffect(() => {
     updateEditorFromBody();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [body]);
 
   // Initialize rich text editor
