@@ -353,22 +353,23 @@ const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavig
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-medium text-gray-700">
-                      CC Email Addresses
+                      BCC Email Addresses
                     </FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="e.g. admin@clinic.com, supervisor@hospital.com" 
+                      <Input
+                        placeholder="e.g. admin@clinic.com, supervisor@hospital.com"
                         {...field}
                         className="border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                       />
                     </FormControl>
                     <FormDescriptionText>
-                      These emails will be copied on all patient communications (comma separated).
+                      These emails will receive hidden copies of all patient communications (comma separated).
                     </FormDescriptionText>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
             </div>
 
             <FormError message={error} />

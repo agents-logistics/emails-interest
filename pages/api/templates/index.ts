@@ -9,6 +9,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const where = typeof testId === "string" && testId.length > 0 ? { testId } : undefined;
       const templates = await db.emailTemplate.findMany({
         where,
+        include: {
+          attachments: true,
+        },
         orderBy: { createdAt: "desc" },
       });
       return res.status(200).json({ templates });
@@ -27,7 +30,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: {
           testId: parsed.testId,
           body: parsed.body,
+          ...(parsed.subject && { subject: parsed.subject }),
           isRTL: parsed.isRTL ?? true,
+          ...(parsed.reply_to && { reply_to: parsed.reply_to }),
+        },
+        include: {
+          attachments: true,
         },
       });
 

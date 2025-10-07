@@ -225,14 +225,33 @@ model TestPricingOption {
 }
 
 model EmailTemplate {
-  id        String   @id @default(cuid())
-  testId    String
-  body      String
-  isRTL     Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String           @id @default(cuid())
+  testId       String
+  body         String
+  subject      String?          // Email subject (optional, for backward compatibility)
+  isRTL        Boolean          @default(true)
+  reply_to     String?          // Email address for reply-to functionality
+  attachments  EmailAttachment[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
-  test      PatientTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  test         PatientTest      @relation(fields: [testId], references: [id], onDelete: Cascade)
 
   @@index([testId])
+}
+
+model EmailAttachment {
+  id          String   @id @default(cuid())
+  templateId  String
+  filename    String   // Stored filename (UUID-based)
+  originalName String  // Original uploaded filename
+  filePath    String   // Path on server
+  fileSize    Int      // Size in bytes
+  mimeType    String   // MIME type
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  template    EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
 }

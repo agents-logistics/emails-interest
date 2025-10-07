@@ -435,15 +435,16 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
                   name="emailCopiesCsv"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email copy</FormLabel>
+                      <FormLabel>BCC Email Addresses</FormLabel>
                       <FormControl>
                         <Input placeholder="Comma delimited emails, e.g. a@x.com,b@y.com" {...field} />
                       </FormControl>
-                      <FormDescriptionText>We will CC these emails when sending.</FormDescriptionText>
+                      <FormDescriptionText>These emails will receive hidden copies when sending.</FormDescriptionText>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
 
                 <FormError message={error} />
                 <FormSuccess message={success} />

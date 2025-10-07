@@ -13,6 +13,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === "GET") {
       const template = await db.emailTemplate.findUnique({
         where: { id },
+        include: {
+          attachments: true,
+        },
       });
 
       if (!template) {
@@ -48,7 +51,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: {
           testId: parsed.testId,
           body: parsed.body,
+          ...(parsed.subject !== undefined && { subject: parsed.subject }),
           isRTL: parsed.isRTL ?? true,
+          ...(parsed.reply_to !== undefined && { reply_to: parsed.reply_to }),
+        },
+        include: {
+          attachments: true,
         },
       });
 

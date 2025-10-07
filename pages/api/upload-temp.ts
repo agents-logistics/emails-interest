@@ -3,7 +3,6 @@ import formidable, { IncomingForm, File } from 'formidable';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from '@/lib/db';
 
 export const config = {
   api: {
@@ -33,63 +32,37 @@ const uploadHandler = async (req: NextApiRequest, res: NextApiResponse) => {
       return;
     }
 
-    const templateId = Array.isArray(fields.templateId) ? fields.templateId[0] : fields.templateId;
-    if (!templateId) {
-      res.status(400).json({ error: 'Template ID is required' });
-      return;
-    }
-
     try {
-      // Verify template exists
-      const template = await db.emailTemplate.findUnique({
-        where: { id: templateId }
-      });
-
-      if (!template) {
-        return res.status(404).json({ error: 'Template not found' });
-      }
-
       // Generate unique filename
       const fileExtension = path.extname(file.originalFilename || '');
-      const uniqueFilename = `${uuidv4()}${fileExtension}`;
-      const uploadDir = path.join(process.cwd(), 'uploads', 'attachments');
-      const finalFilePath = path.join(uploadDir, uniqueFilename);
+      const uniqueFilename = `temp_${uuidv4()}${fileExtension}`;
+      const tempDir = path.join(process.cwd(), 'uploads', 'temp');
+      const finalFilePath = path.join(tempDir, uniqueFilename);
 
-      // Ensure upload directory exists
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
+      // Ensure temp directory exists
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
       }
 
-      // Move file from temp location to permanent location
+      // Move file from temp location to temp attachments location
       fs.renameSync(file.filepath, finalFilePath);
 
       // Get file stats
       const stats = fs.statSync(finalFilePath);
       const fileSize = stats.size;
 
-      // Determine MIME type (basic detection)
-      const mimeType = getMimeType(fileExtension);
+      // Determine MIME type
+      const mimeType = file.mimetype || getMimeType(fileExtension);
 
-      // Create database record
-      const attachment = await db.emailAttachment.create({
-        data: {
-          templateId,
+      // Return temp file info
+      res.status(200).json({
+        tempFile: {
+          id: uniqueFilename,
           filename: uniqueFilename,
           originalName: file.originalFilename || 'unknown',
           filePath: finalFilePath,
           fileSize,
           mimeType,
-        },
-      });
-
-      // Return attachment info
-      res.status(200).json({
-        attachment: {
-          id: attachment.id,
-          filename: attachment.filename,
-          originalName: attachment.originalName,
-          fileSize: attachment.fileSize,
-          mimeType: attachment.mimeType,
         }
       });
 
@@ -119,3 +92,5 @@ function getMimeType(extension: string): string {
 }
 
 export default uploadHandler;
+
+

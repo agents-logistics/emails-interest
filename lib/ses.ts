@@ -1,21 +1,31 @@
-import { SESClient, SendEmailCommand, SendEmailCommandInput } from '@aws-sdk/client-ses';
+import { SESClient, SendEmailCommand, SendEmailCommandInput, SendRawEmailCommand } from '@aws-sdk/client-ses';
+
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  mimeType: string;
+}
 
 export interface TransactionalEmailData {
   to: string[];
+  bcc?: string[];
   replyTo: string;
   subject: string;
   htmlContent: string;
   fromEmail?: string;
   fromName?: string;
+  attachments?: EmailAttachment[];
 }
 
 export async function sendTransactionalEmail({
   to,
+  bcc,
   replyTo,
   subject,
   htmlContent,
   fromEmail = 'info@progenetics1.co.il',
-  fromName = 'Progenetics'
+  fromName = 'Progenetics',
+  attachments = []
 }: TransactionalEmailData) {
   try {
     // Check required environment variables
@@ -41,32 +51,92 @@ export async function sendTransactionalEmail({
     console.log('Sending email via Amazon SES...');
     console.log(`From: ${fromName} <${fromEmail}>`);
     console.log(`To: ${to.join(', ')}`);
+    if (bcc && bcc.length > 0) {
+      console.log(`BCC: ${bcc.join(', ')}`);
+    }
     console.log(`Subject: ${subject}`);
+    console.log(`Attachments: ${attachments.length}`);
 
-    // Prepare email parameters
-    const params: SendEmailCommandInput = {
-      Source: `${fromName} <${fromEmail}>`,
-      Destination: {
-        ToAddresses: to,
-      },
-      Message: {
-        Subject: {
-          Data: subject,
-          Charset: 'UTF-8',
+    let response;
+
+    if (attachments.length > 0) {
+      // Use SendRawEmail for emails with attachments
+      const boundary = `----=_NextPart_${Date.now()}`;
+
+      // Build list of all recipients (to + bcc)
+      const allDestinations = [...to, ...(bcc || [])];
+
+      // Create multipart email with attachments
+      // Note: BCC should NOT be in headers, only in Destinations parameter
+      let rawEmail = [
+        `From: ${fromName} <${fromEmail}>`,
+        `To: ${to.join(', ')}`,
+        `Reply-To: ${replyTo}`,
+        `Subject: ${subject}`,
+        `MIME-Version: 1.0`,
+        `Content-Type: multipart/mixed; boundary="${boundary}"`,
+        ``,
+        `--${boundary}`,
+        `Content-Type: text/html; charset=UTF-8`,
+        `Content-Transfer-Encoding: 7bit`,
+        ``,
+        htmlContent,
+        ``
+      ];
+
+      // Add attachments
+      for (const attachment of attachments) {
+        rawEmail.push(
+          `--${boundary}`,
+          `Content-Type: ${attachment.mimeType}`,
+          `Content-Transfer-Encoding: base64`,
+          `Content-Disposition: attachment; filename="${attachment.filename}"`,
+          ``,
+          attachment.content.toString('base64'),
+          ``
+        );
+      }
+
+      rawEmail.push(`--${boundary}--`);
+
+      const rawEmailString = rawEmail.join('\r\n');
+
+      const params = {
+        Source: fromEmail,
+        Destinations: allDestinations,
+        RawMessage: {
+          Data: new Uint8Array(Buffer.from(rawEmailString, 'utf-8')),
         },
-        Body: {
-          Html: {
-            Data: htmlContent,
+      };
+
+      const command = new SendRawEmailCommand(params);
+      response = await sesClient.send(command);
+    } else {
+      // Use regular SendEmail for emails without attachments
+      const params: SendEmailCommandInput = {
+        Source: `${fromName} <${fromEmail}>`,
+        Destination: {
+          ToAddresses: to,
+          ...(bcc && bcc.length > 0 && { BccAddresses: bcc }),
+        },
+        Message: {
+          Subject: {
+            Data: subject,
             Charset: 'UTF-8',
           },
+          Body: {
+            Html: {
+              Data: htmlContent,
+              Charset: 'UTF-8',
+            },
+          },
         },
-      },
-      ReplyToAddresses: [replyTo],
-    };
+        ReplyToAddresses: [replyTo],
+      };
 
-    // Send the email
-    const command = new SendEmailCommand(params);
-    const response = await sesClient.send(command);
+      const command = new SendEmailCommand(params);
+      response = await sesClient.send(command);
+    }
 
     console.log('SES response:', JSON.stringify(response, null, 2));
 
@@ -78,7 +148,7 @@ export async function sendTransactionalEmail({
 
     return {
       success: true,
-      sent: to.length,
+      sent: to.length + (bcc ? bcc.length : 0),
       queued: 0,
       rejected: 0,
       results: [
@@ -86,10 +156,11 @@ export async function sendTransactionalEmail({
           messageId: messageId,
           status: 'sent',
           to: to,
+          ...(bcc && bcc.length > 0 && { bcc: bcc }),
           subject: subject,
         }
       ],
-      message: `Successfully sent email to ${to.length} recipients`,
+      message: `Successfully sent email to ${to.length} recipients${bcc && bcc.length > 0 ? ` and ${bcc.length} BCC recipients` : ''}`,
       messageId: messageId,
     };
 

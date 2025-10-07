@@ -96,7 +96,9 @@ export type TestCreateInput = z.infer<typeof TestCreateSchema>;
 export const TemplateCreateSchema = z.object({
   testId: z.string().min(1, { message: "testId is required" }),
   body: z.string().min(1, { message: "Template body is required" }),
+  subject: z.string().optional(),
   isRTL: z.boolean().optional().default(true),
+  reply_to: z.string().email().optional(),
 });
 
 export type TemplateCreateInput = z.infer<typeof TemplateCreateSchema>;
@@ -107,6 +109,7 @@ export const EmailPreviewSchema = z
     testId: z.string().min(1),
     templateId: z.string().optional(),
     body: z.string().optional(),
+    subject: z.string().optional(),
     isRTL: z.boolean().optional(),
     nameOnTemplate: z.string().min(1),
     installment: z.number(),
