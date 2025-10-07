@@ -68,8 +68,6 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
   attachments = [],
   onAttachmentsChange,
 }) => {
-  const quillRef = useRef<any>(null);
-  
   // Link dialog state
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
@@ -87,6 +85,9 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
   // File upload state
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string>('');
+  
+  // Image upload state
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Get selected pricing option for preview
   const selectedPreviewPricingOption = useMemo(() => {
@@ -122,6 +123,93 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
     }
   }, []);
 
+  // Image upload handler
+  const imageHandler = useCallback(function(this: any) {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    // Store reference to the Quill editor instance
+    // In Quill toolbar handlers, 'this' is the Quill instance
+    const quill = this.quill || this;
+    
+    console.log('Toolbar handler context:', this);
+    console.log('Quill instance:', quill);
+    console.log('Has getSelection?', typeof quill?.getSelection);
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      // Validate file size (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size must be less than 5MB');
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+
+      setUploadingImage(true);
+
+      try {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const res = await fetch('/api/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Upload failed');
+        }
+
+        const data = await res.json();
+        console.log('Image uploaded successfully:', data.url);
+
+        // Try multiple ways to get the Quill instance
+        let editorInstance = quill;
+        
+        // If quill doesn't have getSelection, try to find it
+        if (!editorInstance || typeof editorInstance.getSelection !== 'function') {
+          console.log('Trying to find Quill instance in DOM...');
+          const quillContainer = document.querySelector('.ql-container');
+          if (quillContainer && (quillContainer as any).__quill) {
+            editorInstance = (quillContainer as any).__quill;
+            console.log('Found Quill instance in DOM:', editorInstance);
+          }
+        }
+
+        // Use the Quill editor instance
+        if (editorInstance && typeof editorInstance.getSelection === 'function') {
+          // Get current selection or default to end of document
+          const range = editorInstance.getSelection(true);
+          const insertIndex = range ? range.index : editorInstance.getLength();
+          console.log('Inserting image at index:', insertIndex);
+          // Insert image at cursor position
+          editorInstance.insertEmbed(insertIndex, 'image', data.url, 'user');
+          // Move cursor after the image
+          editorInstance.setSelection(insertIndex + 1);
+          console.log('Image inserted successfully');
+        } else {
+          console.error('Quill editor instance not available', editorInstance);
+          alert('Could not insert image into editor. The image was uploaded to: ' + data.url);
+        }
+      } catch (error: any) {
+        console.error('Image upload error:', error);
+        alert('Failed to upload image: ' + (error.message || 'Unknown error'));
+      } finally {
+        setUploadingImage(false);
+      }
+    };
+  }, []);
+
   // Quill modules configuration
   const modules = useMemo(() => ({
     toolbar: {
@@ -135,14 +223,17 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
         [{ 'indent': '-1'}, { 'indent': '+1' }],
         [{ 'direction': 'rtl' }],
         [{ 'align': [] }],
-        ['link'],
+        ['link', 'image'],
         ['clean']
       ],
+      handlers: {
+        image: imageHandler,
+      },
     },
     clipboard: {
       matchVisual: false,
     }
-  }), []);
+  }), [imageHandler]);
 
   // Quill formats
   const formats = [
@@ -153,7 +244,7 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
     'list', 'bullet',
     'indent',
     'direction', 'align',
-    'link',
+    'link', 'image',
   ];
 
   const insertToken = (token: string) => {
@@ -418,13 +509,18 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
           </p>
           <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
             <p className="text-xs text-blue-800">
-              💡 <strong>Tip:</strong> Use the toolbar above to format text. Select text first, then choose font size, colors, bold/italic, alignment, etc. Font sizes and all formatting will be preserved in emails.
+              💡 <strong>Tip:</strong> Use the toolbar to format text and insert images. The 🖼️ image button lets you upload images (like signatures). All formatting will be preserved in emails.
             </p>
           </div>
         </div>
 
         {/* Quill Editor */}
         <div className="px-6 py-4">
+          {uploadingImage && (
+            <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded">
+              <p className="text-sm text-blue-800">📤 Uploading image...</p>
+            </div>
+          )}
           <div 
             className="quill-wrapper"
             dir={isRTL ? 'rtl' : 'ltr'}
@@ -432,20 +528,18 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
               minHeight: '400px',
             }}
           >
-            <div ref={quillRef}>
-              <ReactQuill
-                theme="snow"
-                value={body}
-                onChange={onBodyChange}
-                modules={modules}
-                formats={formats}
-                placeholder={`Write your email template here...\n\nAvailable placeholders: ${REQUIRED_TEMPLATE_TOKENS.join(', ')}`}
-                style={{
-                  height: '350px',
-                  marginBottom: '50px'
-                }}
-              />
-            </div>
+            <ReactQuill
+              theme="snow"
+              value={body}
+              onChange={onBodyChange}
+              modules={modules}
+              formats={formats}
+              placeholder={`Write your email template here...\n\nAvailable placeholders: ${REQUIRED_TEMPLATE_TOKENS.join(', ')}`}
+              style={{
+                height: '350px',
+                marginBottom: '50px'
+              }}
+            />
           </div>
 
           {missingTokens.length > 0 && body.trim() && (
@@ -617,6 +711,14 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
         .quill-wrapper .ql-editor a {
           color: #0066cc;
           text-decoration: underline;
+        }
+        
+        /* Image styles */
+        .quill-wrapper .ql-editor img {
+          max-width: 100%;
+          height: auto;
+          display: inline-block;
+          margin: 10px 0;
         }
         
         /* Fix link tooltip positioning - ensure it stays visible */
