@@ -96,12 +96,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       patientName: parsed.patientName,
     });
 
-    // Convert relative image URLs to absolute URLs for email
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://emails.progenetics1.co.il';
+    // Extract images and prepare them as inline attachments
+    const imageMap = new Map<string, string>(); // filename -> CID
+    const inlineImages: { filename: string; filePath: string; cid: string }[] = [];
     
-    // Handle both old static path and new API route path
-    rendered = rendered.replace(/<img([^>]*?)src="(\/uploads\/images\/|\/api\/images\/)([^"]+)"([^>]*?)>/gi, (match, before, path, filename, after) => {
-      return `<img${before}src="${baseUrl}/api/images/${filename}"${after}>`;
+    // Find all images in the HTML
+    const imageRegex = /<img([^>]*?)src="(?:\/uploads\/images\/|\/api\/images\/)([^"]+)"([^>]*?)>/gi;
+    let match;
+    let imageCounter = 0;
+    
+    while ((match = imageRegex.exec(rendered)) !== null) {
+      const filename = match[2];
+      
+      if (!imageMap.has(filename)) {
+        const cid = `image${imageCounter++}_${filename.replace(/\.[^.]+$/, '')}@progenetics`;
+        imageMap.set(filename, cid);
+        
+        const imagePath = path.join(process.cwd(), 'public', 'uploads', 'images', filename);
+        if (fs.existsSync(imagePath)) {
+          inlineImages.push({ filename, filePath: imagePath, cid });
+        }
+      }
+    }
+    
+    // Replace image URLs with CID references
+    rendered = rendered.replace(imageRegex, (match, before, filename, after) => {
+      const cid = imageMap.get(filename);
+      if (cid) {
+        return `<img${before}src="cid:${cid}"${after}>`;
+      }
+      return match;
     });
 
     // SIMPLIFIED EMAIL RENDERING - Quill outputs clean HTML already
@@ -242,6 +266,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
     }
+
+    // Add inline images as attachments with CID
+    for (const inlineImage of inlineImages) {
+      const fileContent = fs.readFileSync(inlineImage.filePath);
+      const ext = path.extname(inlineImage.filename).toLowerCase();
+      const mimeTypes: Record<string, string> = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+      };
+      const mimeType = mimeTypes[ext] || 'application/octet-stream';
+      
+      emailAttachments.push({
+        filename: inlineImage.filename,
+        content: fileContent,
+        mimeType: mimeType,
+        cid: inlineImage.cid,
+        inline: true,
+      });
+    }
+    
+    console.log(`Added ${inlineImages.length} inline images as CID attachments`);
 
     function getMimeType(extension: string): string {
       const mimeTypes: Record<string, string> = {

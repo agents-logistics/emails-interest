@@ -4,6 +4,8 @@ export interface EmailAttachment {
   filename: string;
   content: Buffer;
   mimeType: string;
+  cid?: string; // Content-ID for inline images
+  inline?: boolean; // Whether this is an inline attachment
 }
 
 export interface TransactionalEmailData {
@@ -62,9 +64,14 @@ export async function sendTransactionalEmail({
     if (attachments.length > 0) {
       // Use SendRawEmail for emails with attachments
       const boundary = `----=_NextPart_${Date.now()}`;
+      const relatedBoundary = `----=_Related_${Date.now()}`;
 
       // Build list of all recipients (to + bcc)
       const allDestinations = [...to, ...(bcc || [])];
+
+      // Separate inline and regular attachments
+      const inlineAttachments = attachments.filter(a => a.inline && a.cid);
+      const regularAttachments = attachments.filter(a => !a.inline);
 
       // Create multipart email with attachments
       // Note: BCC should NOT be in headers, only in Destinations parameter
@@ -76,16 +83,50 @@ export async function sendTransactionalEmail({
         `MIME-Version: 1.0`,
         `Content-Type: multipart/mixed; boundary="${boundary}"`,
         ``,
-        `--${boundary}`,
-        `Content-Type: text/html; charset=UTF-8`,
-        `Content-Transfer-Encoding: 7bit`,
-        ``,
-        htmlContent,
-        ``
+        `--${boundary}`
       ];
 
-      // Add attachments
-      for (const attachment of attachments) {
+      // If we have inline attachments, use multipart/related
+      if (inlineAttachments.length > 0) {
+        rawEmail.push(
+          `Content-Type: multipart/related; boundary="${relatedBoundary}"`,
+          ``,
+          `--${relatedBoundary}`,
+          `Content-Type: text/html; charset=UTF-8`,
+          `Content-Transfer-Encoding: 7bit`,
+          ``,
+          htmlContent,
+          ``
+        );
+
+        // Add inline attachments with CID
+        for (const attachment of inlineAttachments) {
+          rawEmail.push(
+            `--${relatedBoundary}`,
+            `Content-Type: ${attachment.mimeType}`,
+            `Content-Transfer-Encoding: base64`,
+            `Content-ID: <${attachment.cid}>`,
+            `Content-Disposition: inline; filename="${attachment.filename}"`,
+            ``,
+            attachment.content.toString('base64'),
+            ``
+          );
+        }
+
+        rawEmail.push(`--${relatedBoundary}--`, ``);
+      } else {
+        // No inline attachments, just add HTML content
+        rawEmail.push(
+          `Content-Type: text/html; charset=UTF-8`,
+          `Content-Transfer-Encoding: 7bit`,
+          ``,
+          htmlContent,
+          ``
+        );
+      }
+
+      // Add regular attachments
+      for (const attachment of regularAttachments) {
         rawEmail.push(
           `--${boundary}`,
           `Content-Type: ${attachment.mimeType}`,
