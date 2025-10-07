@@ -142,6 +142,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       patientName: parsed.patientName,
     });
 
+    // Convert relative image URLs to absolute URLs for preview
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://emails.progenetics1.co.il';
+    preview = preview.replace(/<img([^>]*?)src="\/uploads\/images\/([^"]+)"([^>]*?)>/gi, (match, before, filename, after) => {
+      return `<img${before}src="${baseUrl}/uploads/images/${filename}"${after}>`;
+    });
+
     // SIMPLIFIED PREVIEW RENDERING - Match send.ts exactly
     // Just ensure proper paragraph spacing for email clients while preserving all existing styles
     

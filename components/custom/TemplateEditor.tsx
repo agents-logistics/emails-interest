@@ -133,10 +133,6 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
     // Store reference to the Quill editor instance
     // In Quill toolbar handlers, 'this' is the Quill instance
     const quill = this.quill || this;
-    
-    console.log('Toolbar handler context:', this);
-    console.log('Quill instance:', quill);
-    console.log('Has getSelection?', typeof quill?.getSelection);
 
     input.onchange = async () => {
       const file = input.files?.[0];
@@ -171,18 +167,15 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
         }
 
         const data = await res.json();
-        console.log('Image uploaded successfully:', data.url);
 
         // Try multiple ways to get the Quill instance
         let editorInstance = quill;
         
-        // If quill doesn't have getSelection, try to find it
+        // If quill doesn't have getSelection, try to find it in the DOM
         if (!editorInstance || typeof editorInstance.getSelection !== 'function') {
-          console.log('Trying to find Quill instance in DOM...');
           const quillContainer = document.querySelector('.ql-container');
           if (quillContainer && (quillContainer as any).__quill) {
             editorInstance = (quillContainer as any).__quill;
-            console.log('Found Quill instance in DOM:', editorInstance);
           }
         }
 
@@ -191,14 +184,12 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
           // Get current selection or default to end of document
           const range = editorInstance.getSelection(true);
           const insertIndex = range ? range.index : editorInstance.getLength();
-          console.log('Inserting image at index:', insertIndex);
           // Insert image at cursor position
           editorInstance.insertEmbed(insertIndex, 'image', data.url, 'user');
           // Move cursor after the image
           editorInstance.setSelection(insertIndex + 1);
-          console.log('Image inserted successfully');
         } else {
-          console.error('Quill editor instance not available', editorInstance);
+          console.error('Quill editor instance not available');
           alert('Could not insert image into editor. The image was uploaded to: ' + data.url);
         }
       } catch (error: any) {
