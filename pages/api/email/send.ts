@@ -98,8 +98,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Convert relative image URLs to absolute URLs for email
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://emails.progenetics1.co.il';
-    rendered = rendered.replace(/<img([^>]*?)src="\/uploads\/images\/([^"]+)"([^>]*?)>/gi, (match, before, filename, after) => {
-      return `<img${before}src="${baseUrl}/uploads/images/${filename}"${after}>`;
+    
+    // Handle both old static path and new API route path
+    rendered = rendered.replace(/<img([^>]*?)src="(\/uploads\/images\/|\/api\/images\/)([^"]+)"([^>]*?)>/gi, (match, before, path, filename, after) => {
+      return `<img${before}src="${baseUrl}/api/images/${filename}"${after}>`;
     });
 
     // SIMPLIFIED EMAIL RENDERING - Quill outputs clean HTML already

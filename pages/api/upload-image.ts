@@ -58,8 +58,8 @@ const uploadImageHandler = async (req: NextApiRequest, res: NextApiResponse) => 
       const stats = fs.statSync(finalFilePath);
       const fileSize = stats.size;
 
-      // Return public URL
-      const imageUrl = `/uploads/images/${uniqueFilename}`;
+      // Return API route URL (works reliably in all environments)
+      const imageUrl = `/api/images/${uniqueFilename}`;
 
       return res.status(200).json({
         url: imageUrl,
