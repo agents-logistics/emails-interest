@@ -3,7 +3,8 @@ import fs from 'fs';
 import path from 'path';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') {
+  // Support both GET and HEAD requests (Gmail and other email clients use HEAD to check images)
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -40,12 +41,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
     const mimeType = mimeTypes[ext] || 'application/octet-stream';
 
-    // Set headers
+    // Set headers for both HEAD and GET requests
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Length', stats.size);
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('Access-Control-Allow-Origin', '*'); // Allow email clients to access
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    
+    // For HEAD requests, just return headers without body
+    if (req.method === 'HEAD') {
+      return res.status(200).end();
+    }
 
-    // Stream the file
+    // For GET requests, stream the file
     const fileStream = fs.createReadStream(imagePath);
     fileStream.pipe(res);
   } catch (error: any) {
