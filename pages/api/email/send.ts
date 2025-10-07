@@ -100,13 +100,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const imageMap = new Map<string, string>(); // filename -> CID
     const inlineImages: { filename: string; filePath: string; cid: string }[] = [];
     
-    // Find all images in the HTML
-    const imageRegex = /<img([^>]*?)src="(?:\/uploads\/images\/|\/api\/images\/)([^"]+)"([^>]*?)>/gi;
+    // Log a sample of the rendered HTML to debug
+    console.log('=== RENDERED HTML SAMPLE (first 500 chars) ===');
+    console.log(rendered.substring(0, 500));
+    console.log('==============================================');
+    
+    // Find all images in the HTML - match both relative and absolute URLs
+    // Matches: /uploads/images/file.png OR /api/images/file.png OR https://domain.com/uploads/images/file.png OR https://domain.com/api/images/file.png
+    const imageRegex = /<img([^>]*?)src="(?:https?:\/\/[^\/]+)?(?:\/uploads\/images\/|\/api\/images\/)([^"]+)"([^>]*?)>/gi;
     let match;
     let imageCounter = 0;
     
     while ((match = imageRegex.exec(rendered)) !== null) {
       const filename = match[2];
+      console.log(`Found image in template: ${filename}`);
       
       if (!imageMap.has(filename)) {
         const cid = `image${imageCounter++}_${filename.replace(/\.[^.]+$/, '')}@progenetics`;
@@ -115,11 +122,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const imagePath = path.join(process.cwd(), 'public', 'uploads', 'images', filename);
         if (fs.existsSync(imagePath)) {
           inlineImages.push({ filename, filePath: imagePath, cid });
+          console.log(`✓ Image file exists, will embed as CID: ${cid}`);
+        } else {
+          console.log(`✗ Image file not found at: ${imagePath}`);
         }
       }
     }
     
-    // Replace image URLs with CID references
+    // Replace image URLs with CID references (both relative and absolute)
     rendered = rendered.replace(imageRegex, (match, before, filename, after) => {
       const cid = imageMap.get(filename);
       if (cid) {
@@ -127,6 +137,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       return match;
     });
+    
+    console.log(`Replaced ${inlineImages.length} images with CID references`);
 
     // SIMPLIFIED EMAIL RENDERING - Quill outputs clean HTML already
     // Just ensure proper paragraph spacing for email clients while preserving all existing styles
