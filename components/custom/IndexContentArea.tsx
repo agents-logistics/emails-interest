@@ -936,7 +936,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                 <p className="text-xs text-gray-600 mt-2 ml-8">
                   Check this box if the patient has Clalit insurance. This will include Clalit-specific text in the email where #ClalitText appears in the template.
                   {showTemplateEditor && (
-                    <span className="text-orange-600 font-medium"> Click "Preview Email" again to see the updated content.</span>
+                    <span className="text-orange-600 font-medium"> Click &quot;Preview Email&quot; again to see the updated content.</span>
                   )}
                 </p>
               </div>
