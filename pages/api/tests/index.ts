@@ -8,14 +8,12 @@ const DirectSchema = z
   .object({
     name: z.string().trim().min(1, { message: "Test name is required" }),
     templateNames: z.array(z.string().trim().min(1)).min(1, { message: "At least one template name is required" }),
-    emailCopies: z.array(z.string().email()).min(1, { message: "At least one email copy is required" }),
     pricingOptions: z.array(PricingOptionSchema).min(1, { message: "At least one pricing option is required" }),
   })
   .transform((input) => {
     return {
       name: input.name.trim(),
       templateNames: Array.from(new Set(input.templateNames.map((s) => s.trim()).filter(Boolean))),
-      emailCopies: Array.from(new Set(input.emailCopies)),
       pricingOptions: input.pricingOptions,
     };
   });
@@ -41,7 +39,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       type ParsedTest = {
         name: string;
         templateNames: string[];
-        emailCopies: string[];
         pricingOptions: Array<{
           installment: number;
           price: number;
@@ -54,7 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // If the client sends arrays directly, use DirectSchema, otherwise accept CSV and transform.
       const b: any = req.body;
-      const looksLikeDirect = Array.isArray(b?.templateNames) || Array.isArray(b?.emailCopies);
+      const looksLikeDirect = Array.isArray(b?.templateNames);
 
       let parsed: ParsedTest;
       if (looksLikeDirect) {
@@ -68,7 +65,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: {
           name: parsed.name,
           templateNames: parsed.templateNames,
-          emailCopies: parsed.emailCopies,
           pricingOptions: {
             create: parsed.pricingOptions.map(opt => ({
               installment: opt.installment,
@@ -98,7 +94,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       type ParsedTest = {
         name: string;
         templateNames: string[];
-        emailCopies: string[];
         pricingOptions: Array<{
           installment: number;
           price: number;
@@ -111,7 +106,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Parse the update data using the same logic as POST
       const b: any = updateData;
-      const looksLikeDirect = Array.isArray(b?.templateNames) || Array.isArray(b?.emailCopies);
+      const looksLikeDirect = Array.isArray(b?.templateNames);
 
       let parsed: ParsedTest;
       if (looksLikeDirect) {
@@ -131,7 +126,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: {
           name: parsed.name,
           templateNames: parsed.templateNames,
-          emailCopies: parsed.emailCopies,
           pricingOptions: {
             create: parsed.pricingOptions.map(opt => ({
               installment: opt.installment,

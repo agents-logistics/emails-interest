@@ -54,6 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ...(parsed.subject !== undefined && { subject: parsed.subject }),
           isRTL: parsed.isRTL ?? true,
           ...(parsed.reply_to !== undefined && { reply_to: parsed.reply_to }),
+          ...(parsed.clalitText !== undefined && { clalitText: parsed.clalitText }),
         },
         include: {
           attachments: true,

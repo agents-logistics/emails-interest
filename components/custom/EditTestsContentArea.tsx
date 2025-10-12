@@ -254,8 +254,8 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
   };
 
   return (
-    <div className={`${styles.customRounded} flex flex-col items-center p-4 bg-white shadow-lg rounded-lg w-full h-full overflow-auto`}>
-      <div className="w-full flex items-start mb-4">
+    <div className={`${styles.customRounded} flex flex-col p-6 bg-gradient-to-br from-gray-50 to-gray-100 w-full h-full overflow-auto`}>
+      <div className="w-full flex items-start mb-6">
         {!showNavigation && (
           <div>
             <Button variant="secondary" onClick={onShowNavigation}>Show Navigation</Button>
@@ -263,20 +263,39 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
         )}
       </div>
 
-      <div className="w-full max-w-5xl">
+      <div className="w-full max-w-5xl mx-auto space-y-6">
         {editingTest ? (
           // Edit form view
           <>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Edit Test: {editingTest.name}</h2>
-              <Button variant="outline" onClick={handleCancelEdit}>
-                Back to List
-              </Button>
+            {/* Page Header */}
+            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl shadow-md p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold mb-2">Edit Test: {editingTest.name}</h1>
+                  <p className="text-indigo-100">Modify test configuration and pricing options</p>
+                </div>
+                <Button variant="secondary" onClick={handleCancelEdit}>
+                  Back to List
+                </Button>
+              </div>
             </div>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                <FormField
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {/* Basic Information */}
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                      </div>
+                      <h2 className="text-lg font-bold text-gray-800">Basic Test Information</h2>
+                    </div>
+                  </div>
+                  <div className="p-6 space-y-5">
+                    <FormField
                   control={form.control}
                   name="name"
                   render={({ field }) => (
@@ -305,26 +324,35 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
                     </FormItem>
                   )}
                 />
+                  </div>
+                </div>
 
                 {/* Pricing & Payment Options */}
-                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-medium text-gray-900">
-                      Pricing & Payment Options
-                    </h3>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={addPricingOption}
-                      className="flex items-center gap-2"
-                    >
-                      <Image src="/images/plus.svg" alt="Add" width={16} height={16} />
-                      Add Option
-                    </Button>
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 border-b border-indigo-200 px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <h2 className="text-lg font-bold text-gray-800">Pricing & Payment Options</h2>
+                      </div>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={addPricingOption}
+                        className="flex items-center gap-2"
+                      >
+                        <Image src="/images/plus.svg" alt="Add" width={16} height={16} />
+                        Add Option
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="p-6 space-y-4">
                     {pricingOptions.map((option, index) => (
                       <div key={index} className="border border-gray-200 rounded-lg p-4 bg-white relative">
                         {pricingOptions.length > 1 && (
@@ -430,24 +458,19 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
                   </div>
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="emailCopiesCsv"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>BCC Email Addresses</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Comma delimited emails, e.g. a@x.com,b@y.com" {...field} />
-                      </FormControl>
-                      <FormDescriptionText>These emails will receive hidden copies when sending.</FormDescriptionText>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-
                 <FormError message={error} />
-                <FormSuccess message={success} />
+                {success && (
+                  <div className="bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-xl p-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-bold text-green-800">{success}</p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex gap-3">
                   <Button type="submit" disabled={submitting}>
@@ -463,47 +486,90 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
         ) : (
           // List view
           <>
-            <h2 className="text-xl font-semibold mb-4">Edit Tests</h2>
+            {/* Page Header */}
+            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl shadow-md p-5">
+              <h1 className="text-2xl font-bold mb-2">Edit Tests</h1>
+              <p className="text-indigo-100">View and modify existing test configurations</p>
+            </div>
             
-            {loading ? (
-              <div className="text-center py-8">Loading tests...</div>
-            ) : tests.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No tests found.</p>
+            {/* Tests List Card */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-800">Available Tests ({tests.length})</h2>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {tests.map((test) => (
-                  <div key={test.id} className="border rounded-lg p-4 bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-lg">{test.name}</h3>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          <p>Template Names: {test.templateNames.join(', ')}</p>
-                          <p>Pricing Options: {test.pricingOptions.length} option(s)</p>
-                          {test.pricingOptions.length > 0 && (
-                            <p className="text-xs">
-                              {test.pricingOptions.map(opt => `${opt.installment}×${opt.price}`).join(', ')}
-                            </p>
-                          )}
+              
+              <div className="p-4">
+                {loading ? (
+                  <div className="text-center py-8">
+                    <svg className="animate-spin h-8 w-8 mx-auto text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p className="text-gray-600 mt-2">Loading tests...</p>
+                  </div>
+                ) : tests.length === 0 ? (
+                  <div className="text-center py-8">
+                    <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">No Tests Found</h3>
+                    <p className="text-gray-600">Create your first test to get started.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {tests.map((test) => (
+                      <div key={test.id} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                            <span className="text-indigo-700 font-bold text-lg">{test.name.charAt(0).toUpperCase()}</span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-900">{test.name}</p>
+                            <div className="text-xs text-gray-600 mt-1">
+                              <p>Templates: {test.templateNames.join(', ')}</p>
+                              {test.pricingOptions.length > 0 && (
+                                <p className="mt-0.5">
+                                  Pricing: {test.pricingOptions.map(opt => `${opt.installment}×${opt.price}₪`).join(', ')}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button onClick={() => handleEditClick(test)} variant="outline" size="sm">
+                            Edit
+                          </Button>
+                          <Button onClick={() => handleDeleteClick(test)} variant="destructive" size="sm">
+                            Delete
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button onClick={() => handleEditClick(test)} variant="outline" size="sm">
-                          Edit
-                        </Button>
-                        <Button onClick={() => handleDeleteClick(test)} variant="destructive" size="sm">
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
+            </div>
 
             <FormError message={error} />
-            <FormSuccess message={success} />
+            {success && (
+              <div className="bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-xl p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-bold text-green-800">{success}</p>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

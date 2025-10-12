@@ -10,7 +10,7 @@ export interface EmailAttachment {
 
 export interface TransactionalEmailData {
   to: string[];
-  bcc?: string[];
+  cc?: string[];
   replyTo: string;
   subject: string;
   htmlContent: string;
@@ -21,7 +21,7 @@ export interface TransactionalEmailData {
 
 export async function sendTransactionalEmail({
   to,
-  bcc,
+  cc,
   replyTo,
   subject,
   htmlContent,
@@ -53,8 +53,8 @@ export async function sendTransactionalEmail({
     console.log('Sending email via Amazon SES...');
     console.log(`From: ${fromName} <${fromEmail}>`);
     console.log(`To: ${to.join(', ')}`);
-    if (bcc && bcc.length > 0) {
-      console.log(`BCC: ${bcc.join(', ')}`);
+    if (cc && cc.length > 0) {
+      console.log(`CC: ${cc.join(', ')}`);
     }
     console.log(`Subject: ${subject}`);
     console.log(`Attachments: ${attachments.length}`);
@@ -66,18 +66,18 @@ export async function sendTransactionalEmail({
       const boundary = `----=_NextPart_${Date.now()}`;
       const relatedBoundary = `----=_Related_${Date.now()}`;
 
-      // Build list of all recipients (to + bcc)
-      const allDestinations = [...to, ...(bcc || [])];
+      // Build list of all recipients (to + cc)
+      const allDestinations = [...to, ...(cc || [])];
 
       // Separate inline and regular attachments
       const inlineAttachments = attachments.filter(a => a.inline && a.cid);
       const regularAttachments = attachments.filter(a => !a.inline);
 
       // Create multipart email with attachments
-      // Note: BCC should NOT be in headers, only in Destinations parameter
       let rawEmail = [
         `From: ${fromName} <${fromEmail}>`,
         `To: ${to.join(', ')}`,
+        ...(cc && cc.length > 0 ? [`Cc: ${cc.join(', ')}`] : []),
         `Reply-To: ${replyTo}`,
         `Subject: ${subject}`,
         `MIME-Version: 1.0`,
@@ -158,7 +158,7 @@ export async function sendTransactionalEmail({
         Source: `${fromName} <${fromEmail}>`,
         Destination: {
           ToAddresses: to,
-          ...(bcc && bcc.length > 0 && { BccAddresses: bcc }),
+          ...(cc && cc.length > 0 && { CcAddresses: cc }),
         },
         Message: {
           Subject: {
@@ -189,7 +189,7 @@ export async function sendTransactionalEmail({
 
     return {
       success: true,
-      sent: to.length + (bcc ? bcc.length : 0),
+      sent: to.length + (cc ? cc.length : 0),
       queued: 0,
       rejected: 0,
       results: [
@@ -197,11 +197,11 @@ export async function sendTransactionalEmail({
           messageId: messageId,
           status: 'sent',
           to: to,
-          ...(bcc && bcc.length > 0 && { bcc: bcc }),
+          ...(cc && cc.length > 0 && { cc: cc }),
           subject: subject,
         }
       ],
-      message: `Successfully sent email to ${to.length} recipients${bcc && bcc.length > 0 ? ` and ${bcc.length} BCC recipients` : ''}`,
+      message: `Successfully sent email to ${to.length} recipients${cc && cc.length > 0 ? ` and ${cc.length} CC recipients` : ''}`,
       messageId: messageId,
     };
 

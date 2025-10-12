@@ -36,6 +36,14 @@ export const REQUIRED_TEMPLATE_TOKENS = [
   "#icreditlink",
   "#iformslink",
   "#nameofpatient",
+  "#ClalitText",
+] as const;
+
+export const OPTIONAL_TEMPLATE_TOKENS = [
+  "#DayOfWeek",
+  "#Date",
+  "#Hour",
+  "#Location",
 ] as const;
 
 const splitCsv = (value: string) =>
@@ -58,7 +66,6 @@ export const TestCreateSchema = z
   .object({
     name: z.string().trim().min(1, { message: "Test name is required" }),
     templateNamesCsv: z.string().min(1, { message: "At least one template name is required" }),
-    emailCopiesCsv: z.string().min(1, { message: "At least one email copy is required" }),
     pricingOptions: z.array(PricingOptionSchema).min(1, { message: "At least one pricing option is required" }),
   })
   .transform((input) => {
@@ -71,22 +78,9 @@ export const TestCreateSchema = z
       }]);
     }
 
-    const emailCopies = splitCsv(input.emailCopiesCsv);
-    emailCopies.forEach((email) => {
-      const res = z.string().email().safeParse(email);
-      if (!res.success) {
-        throw new z.ZodError([{
-          code: "custom",
-          path: ["emailCopiesCsv"],
-          message: `Invalid email: ${email}`,
-        }]);
-      }
-    });
-
     return {
       name: input.name.trim(),
       templateNames: Array.from(new Set(templateNames)),
-      emailCopies: Array.from(new Set(emailCopies)),
       pricingOptions: input.pricingOptions,
     };
   });
@@ -98,7 +92,7 @@ export const TemplateCreateSchema = z.object({
   body: z.string().min(1, { message: "Template body is required" }),
   subject: z.string().optional(),
   isRTL: z.boolean().optional().default(true),
-  reply_to: z.string().email().optional(),
+  clalitText: z.string().optional(),
 });
 
 export type TemplateCreateInput = z.infer<typeof TemplateCreateSchema>;
@@ -116,6 +110,14 @@ export const EmailPreviewSchema = z
     price: z.number(),
     toEmail: z.string().email(),
     patientName: z.string().min(1),
+    replyTo: z.string().email({ message: "Reply-to email is required" }),
+    ccEmails: z.string().optional(),
+    sendClalitInfo: z.boolean().optional().default(false),
+    // Optional blood test scheduling fields
+    dayOfWeek: z.string().optional(),
+    date: z.string().optional(),
+    hour: z.string().optional(),
+    location: z.string().optional(),
   })
   .refine((d) => !!(d.templateId || d.body), {
     message: "Either templateId or body must be provided",

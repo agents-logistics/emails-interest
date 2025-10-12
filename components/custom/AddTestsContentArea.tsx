@@ -124,8 +124,8 @@ const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavig
   };
 
   return (
-    <div className={`${styles.customRounded} flex flex-col items-center p-4 bg-white shadow-lg rounded-lg w-full h-full overflow-auto`}>
-      <div className="w-full flex items-start mb-4">
+    <div className={`${styles.customRounded} flex flex-col p-6 bg-gradient-to-br from-gray-50 to-gray-100 w-full h-full overflow-auto`}>
+      <div className="w-full flex items-start mb-6">
         {!showNavigation && (
           <div>
             <Button variant="secondary" onClick={onShowNavigation}>Show Navigation</Button>
@@ -133,25 +133,29 @@ const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavig
         )}
       </div>
 
-      <div className="w-full max-w-4xl space-y-8">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-3">
-            Create New Test
-          </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Set up a new medical test with all the necessary details for email communication and patient management.
-          </p>
+      <div className="w-full max-w-5xl mx-auto space-y-6">
+        {/* Page Header */}
+        <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl shadow-md p-5">
+          <h1 className="text-2xl font-bold mb-2">Create New Test</h1>
+          <p className="text-indigo-100">Set up a new medical test with all the necessary details for email communication and patient management</p>
         </div>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             
             {/* Basic Information */}
-            <div className="border border-gray-200 rounded-lg p-6 bg-white">
-              <h3 className="text-lg font-medium mb-6 text-gray-900 border-b border-gray-100 pb-2">
-                Basic Test Information
-              </h3>
-              <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-800">Basic Test Information</h2>
+                </div>
+              </div>
+              <div className="p-6 space-y-6">
                 <FormField
                   control={form.control}
                   name="name"
@@ -201,24 +205,31 @@ const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavig
             </div>
 
             {/* Pricing Information */}
-            <div className="border border-gray-200 rounded-lg p-6 bg-white">
-              <div className="flex items-center justify-between mb-6 border-b border-gray-100 pb-2">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Pricing & Payment Options
-                </h3>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={addPricingOption}
-                  className="flex items-center gap-2"
-                >
-                  <Image src="/images/plus.svg" alt="Add" width={16} height={16} />
-                  Add Option
-                </Button>
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 border-b border-indigo-200 px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-800">Pricing & Payment Options</h2>
+                  </div>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={addPricingOption}
+                    className="flex items-center gap-2"
+                  >
+                    <Image src="/images/plus.svg" alt="Add" width={16} height={16} />
+                    Add Option
+                  </Button>
+                </div>
               </div>
 
-              <div className="space-y-6">
+              <div className="p-6 space-y-6">
                 {pricingOptions.map((option, index) => (
                   <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50 relative">
                     {pricingOptions.length > 1 && (
@@ -342,44 +353,21 @@ const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavig
               </div>
             </div>
 
-            {/* Email Configuration */}
-            <div className="border border-gray-200 rounded-lg p-6 bg-white">
-              <h3 className="text-lg font-medium mb-6 text-gray-900 border-b border-gray-100 pb-2">
-                Email Configuration
-              </h3>
-              <FormField
-                control={form.control}
-                name="emailCopiesCsv"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-medium text-gray-700">
-                      BCC Email Addresses
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="e.g. admin@clinic.com, supervisor@hospital.com"
-                        {...field}
-                        className="border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                      />
-                    </FormControl>
-                    <FormDescriptionText>
-                      These emails will receive hidden copies of all patient communications (comma separated).
-                    </FormDescriptionText>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-            </div>
-
             <FormError message={error} />
             {success && (
-              <div className="bg-green-50 border border-green-200 rounded p-4">
-                <h3 className="text-sm font-medium text-green-800">Test Created Successfully</h3>
-                <div className="mt-1 text-sm text-green-700">
+              <div className="bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-xl p-4 shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h3 className="text-base font-bold text-green-800">Test Created Successfully</h3>
+                </div>
+                <div className="mt-2 text-sm text-green-700 ml-11">
                   {success}
                 </div>
-                <p className="mt-2 text-sm text-green-600">
+                <p className="mt-2 text-sm text-green-600 ml-11">
                   You can now create email templates for this test.
                 </p>
               </div>

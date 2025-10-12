@@ -197,7 +197,6 @@ model PatientTest {
   id            String     @id @default(cuid())
   name          String     @unique
   templateNames String[]
-  emailCopies   String[]
 
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -230,7 +229,7 @@ model EmailTemplate {
   body         String
   subject      String?          // Email subject (optional, for backward compatibility)
   isRTL        Boolean          @default(true)
-  reply_to     String?          // Email address for reply-to functionality
+  clalitText   String?          // Clalit-specific content for patients with Clalit insurance
   attachments  EmailAttachment[]
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
@@ -254,4 +253,20 @@ model EmailAttachment {
   template    EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@index([templateId])
+}
+
+model BloodTestLocation {
+  id           String   @id @default(cuid())
+  name         String   @unique  // Short label for dropdown
+  templateText String             // Full text for email template
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model CCDefaultEmail {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

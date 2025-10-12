@@ -114,9 +114,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: "Invalid combination of installment and price for this test" });
     }
 
-    // Load template body
+    // Load template body and clalitText
     let body: string;
     let isRTL: boolean = true;
+    let clalitText: string | null = null;
     if (parsed.templateId) {
       const template = await db.emailTemplate.findUnique({
         where: { id: parsed.templateId },
@@ -124,10 +125,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!template) return res.status(400).json({ error: "Invalid templateId" });
       body = template.body;
       isRTL = template.isRTL ?? true;
+      clalitText = template.clalitText;
     } else {
       // Raw body preview (e.g. when creating a new template)
       body = parsed.body!;
       isRTL = parsed.isRTL ?? true;
+      
+      // Try to get clalitText from the default template for this test
+      const defaultTemplate = await db.emailTemplate.findFirst({
+        where: { testId: parsed.testId },
+        orderBy: { createdAt: 'asc' }
+      });
+      if (defaultTemplate) {
+        clalitText = defaultTemplate.clalitText;
+      }
+    }
+
+    // If location ID is provided, fetch the location's template text
+    let locationText: string | undefined;
+    if (parsed.location) {
+      const location = await db.bloodTestLocation.findUnique({
+        where: { id: parsed.location },
+      });
+      if (location) {
+        locationText = location.templateText;
+      }
     }
 
     // Render template with placeholders replaced
@@ -140,6 +162,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       iformsText: iformsText,
       iformsLink: iformsLink,
       patientName: parsed.patientName,
+      clalitText: clalitText || undefined,
+      sendClalitInfo: parsed.sendClalitInfo,
+      // Optional blood test scheduling fields
+      dayOfWeek: parsed.dayOfWeek,
+      date: parsed.date,
+      hour: parsed.hour,
+      location: locationText,
     });
 
     // Convert relative image URLs to absolute URLs for preview
@@ -196,7 +225,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       preview,
       isRTL,
       to: parsed.toEmail,
-      cc: test.emailCopies,
       attachments,
     });
   } catch (err: any) {

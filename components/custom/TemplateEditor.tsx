@@ -3,7 +3,7 @@ import React, { FC, useEffect, useRef, useState, useMemo, useCallback } from 're
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { REQUIRED_TEMPLATE_TOKENS } from '@/schemas';
+import { REQUIRED_TEMPLATE_TOKENS, OPTIONAL_TEMPLATE_TOKENS } from '@/schemas';
 import 'react-quill/dist/quill.snow.css';
 
 // Dynamically import ReactQuill to avoid SSR issues
@@ -50,6 +50,8 @@ type TemplateEditorProps = {
   showAttachmentsSection?: boolean;
   attachments?: EmailAttachment[];
   onAttachmentsChange?: (attachments: EmailAttachment[]) => void;
+  clalitText?: string;
+  onClalitTextChange?: (text: string) => void;
 };
 
 const TemplateEditor: FC<TemplateEditorProps> = ({
@@ -67,6 +69,8 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
   showAttachmentsSection = true,
   attachments = [],
   onAttachmentsChange,
+  clalitText = '',
+  onClalitTextChange,
 }) => {
   // Link dialog state
   const [showLinkDialog, setShowLinkDialog] = useState(false);
@@ -88,6 +92,10 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
   
   // Image upload state
   const [uploadingImage, setUploadingImage] = useState(false);
+  
+  // Clalit Text section state
+  const [showClalitSection, setShowClalitSection] = useState(false);
+  const [previewWithClalit, setPreviewWithClalit] = useState(true);
 
   // Get selected pricing option for preview
   const selectedPreviewPricingOption = useMemo(() => {
@@ -239,11 +247,29 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
   ];
 
   const insertToken = (token: string) => {
-    // Simply append to the current body content
-    // The user can then position it where they want in the editor
-    const currentBody = body || '';
-    const newBody = currentBody + (currentBody ? ' ' : '') + token;
-    onBodyChange(newBody);
+    // Get the Quill editor instance from the DOM
+    const quillContainer = document.querySelector('.ql-container');
+    const editor = quillContainer && (quillContainer as any).__quill;
+    
+    if (editor && typeof editor.getSelection === 'function') {
+      // Get current cursor position or default to end
+      const selection = editor.getSelection(true);
+      const cursorPosition = selection ? selection.index : editor.getLength();
+      
+      // Insert token at cursor position
+      editor.insertText(cursorPosition, token, 'user');
+      
+      // Move cursor after the inserted token
+      editor.setSelection(cursorPosition + token.length);
+      
+      // Focus the editor
+      editor.focus();
+    } else {
+      // Fallback: append to the end if editor instance is not available
+      const currentBody = body || '';
+      const newBody = currentBody + (currentBody ? ' ' : '') + token;
+      onBodyChange(newBody);
+    }
   };
 
   const handlePreview = async () => {
@@ -278,6 +304,7 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
           icreditLink: selectedPreviewPricingOption.icreditLink,
           iformsText: selectedPreviewPricingOption.iformsText,
           iformsLink: selectedPreviewPricingOption.iformsLink,
+          sendClalitInfo: previewWithClalit,
         }),
       });
       const data = await res.json();
@@ -482,20 +509,44 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
           <h4 className="text-sm font-medium text-gray-700 mb-3">
             Insert Placeholders
           </h4>
-          <div className="flex gap-2 flex-wrap">
-            {REQUIRED_TEMPLATE_TOKENS.map((token) => (
-              <button
-                key={token}
-                type="button"
-                className="px-3 py-2 text-xs bg-blue-600 text-white border border-blue-700 rounded hover:bg-blue-700 transition-colors font-medium"
-                onClick={() => insertToken(token)}
-                title={`Insert ${token} placeholder`}
-              >
-                {token}
-              </button>
-            ))}
+          <div className="space-y-3">
+            {/* Required Placeholders */}
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-2">Required Placeholders</p>
+              <div className="flex gap-2 flex-wrap">
+                {REQUIRED_TEMPLATE_TOKENS.map((token) => (
+                  <button
+                    key={token}
+                    type="button"
+                    className="px-3 py-2 text-xs bg-blue-600 text-white border border-blue-700 rounded hover:bg-blue-700 transition-colors font-medium"
+                    onClick={() => insertToken(token)}
+                    title={`Insert ${token} placeholder`}
+                  >
+                    {token}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Optional Blood Test Scheduling Placeholders */}
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-2">Blood Test Scheduling (Optional)</p>
+              <div className="flex gap-2 flex-wrap">
+                {OPTIONAL_TEMPLATE_TOKENS.map((token) => (
+                  <button
+                    key={token}
+                    type="button"
+                    className="px-3 py-2 text-xs bg-green-600 text-white border border-green-700 rounded hover:bg-green-700 transition-colors font-medium"
+                    onClick={() => insertToken(token)}
+                    title={`Insert ${token} placeholder (optional)`}
+                  >
+                    {token}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-          <p className="text-xs text-gray-600 mt-2">
+          <p className="text-xs text-gray-600 mt-3">
             Click to insert placeholders at cursor position. These will be replaced with actual values when sending emails.
           </p>
           <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
@@ -546,6 +597,62 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
         </div>
       </div>
 
+      {/* Clalit Text Section */}
+      {onClalitTextChange && (
+        <div className="border border-gray-200 rounded-lg bg-white mt-6">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">
+                  Clalit Text
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Custom text for patients with Clalit insurance. Insert #ClalitText in the main template where this content should appear.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowClalitSection(!showClalitSection)}
+                className="px-3 py-2 text-sm bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200 transition-colors font-medium"
+              >
+                {showClalitSection ? 'Hide' : 'Show'}
+              </button>
+            </div>
+          </div>
+
+          {showClalitSection && (
+            <div className="px-6 py-4">
+              <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                <p className="text-sm text-blue-800">
+                  💡 <strong>Note:</strong> This text is static and does not support placeholders. It will be inserted where you place #ClalitText in your main template when sending to patients with Clalit insurance.
+                </p>
+              </div>
+              
+              <div 
+                className="quill-wrapper clalit-editor"
+                dir={isRTL ? 'rtl' : 'ltr'}
+                style={{
+                  minHeight: '300px',
+                }}
+              >
+                <ReactQuill
+                  theme="snow"
+                  value={clalitText}
+                  onChange={onClalitTextChange}
+                  modules={modules}
+                  formats={formats}
+                  placeholder="Enter Clalit-specific information here..."
+                  style={{
+                    height: '250px',
+                    marginBottom: '50px'
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Preview Configuration */}
       {showPreviewSection && selectedTest && (
         <div className="border border-gray-200 rounded-lg p-6 bg-white mt-6">
@@ -555,6 +662,28 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
           <p className="text-sm text-gray-600 mb-4">
             Set sample values to test how your template will look when sent to patients
           </p>
+          
+          {/* Clalit Preview Toggle */}
+          {clalitText && clalitText.trim().length > 0 && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  id="previewWithClalit"
+                  checked={previewWithClalit}
+                  onChange={(e) => setPreviewWithClalit(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="previewWithClalit" className="text-sm font-medium text-gray-700">
+                  Preview with Clalit Information
+                </label>
+              </div>
+              <p className="text-xs text-gray-600 mt-1 ml-7">
+                Check to see how the email looks with Clalit text included
+              </p>
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-2 text-gray-700">

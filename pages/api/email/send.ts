@@ -52,11 +52,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: "Invalid combination of installment and price for this test" });
     }
 
-    // Load template body and get reply_to/subject from template
+    // Load template body and get subject/clalitText from template
     let body: string;
     let isRTL: boolean = true;
-    let templateReplyTo: string | null = null;
     let templateSubject: string | null = null;
+    let clalitText: string | null = null;
 
     if (parsed.templateId) {
       // Use specific template
@@ -66,8 +66,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!template) return res.status(400).json({ error: "Invalid templateId" });
       body = template.body;
       isRTL = template.isRTL ?? true;
-      templateReplyTo = template.reply_to;
       templateSubject = template.subject;
+      clalitText = template.clalitText;
     } else {
       // Try to get default template for this test
       const defaultTemplate = await db.emailTemplate.findFirst({
@@ -76,12 +76,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       if (defaultTemplate) {
-        templateReplyTo = defaultTemplate.reply_to;
         templateSubject = defaultTemplate.subject;
+        clalitText = defaultTemplate.clalitText;
       }
 
       body = parsed.body!;
       isRTL = parsed.isRTL ?? true;
+    }
+
+    // If location ID is provided, fetch the location's template text
+    let locationText: string | undefined;
+    if (parsed.location) {
+      const location = await db.bloodTestLocation.findUnique({
+        where: { id: parsed.location },
+      });
+      if (location) {
+        locationText = location.templateText;
+      }
     }
 
     // Render template with placeholders replaced
@@ -94,6 +105,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       iformsText: iformsText,
       iformsLink: iformsLink,
       patientName: parsed.patientName,
+      clalitText: clalitText || undefined,
+      sendClalitInfo: parsed.sendClalitInfo,
+      // Optional blood test scheduling fields
+      dayOfWeek: parsed.dayOfWeek,
+      date: parsed.date,
+      hour: parsed.hour,
+      location: locationText,
     });
 
     // Extract images and prepare them as inline attachments
@@ -197,14 +215,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 </body>
 </html>`;
 
-    // Prepare recipients: primary recipient as TO, email copies as BCC (hidden from recipients)
+    // Prepare recipients: primary recipient as TO, CC emails from request
     const toRecipients = [parsed.toEmail];
-    const bccRecipients = test.emailCopies;
+    
+    // Parse CC emails from comma-separated string
+    const ccRecipients = parsed.ccEmails
+      ? parsed.ccEmails.split(',').map(email => email.trim()).filter(email => email.length > 0)
+      : [];
+    
     console.log('toRecipients', toRecipients);
-    console.log('bccRecipients', bccRecipients);
+    console.log('ccRecipients', ccRecipients);
 
-    // Use reply_to from template if available, otherwise fall back to first email copy or default
-    const replyToEmail = templateReplyTo || (test.emailCopies.length > 0 ? test.emailCopies[0] : 'agents@progenetics.co.il');
+    // Use reply_to from request
+    const replyToEmail = parsed.replyTo;
     console.log('replyToEmail', replyToEmail);
 
     // Use subject from template if available, otherwise use provided subject, or fall back to test name
@@ -323,7 +346,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Send transactional email via Amazon SES
       const emailResult = await sendTransactionalEmail({
         to: toRecipients,
-        bcc: bccRecipients,
+        cc: ccRecipients,
         replyTo: replyToEmail,
         subject: emailSubject,
         htmlContent: htmlEmail,
@@ -335,7 +358,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({
         message: "Email sent successfully via Amazon SES",
         toRecipients: toRecipients,
-        bccRecipients: bccRecipients,
+        ccRecipients: ccRecipients,
         replyTo: replyToEmail,
         subject: emailSubject,
         isRTL,
@@ -352,7 +375,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({
         error: `Failed to send email: ${emailError.message}`,
         toRecipients: toRecipients,
-        bccRecipients: bccRecipients,
+        ccRecipients: ccRecipients,
         replyTo: replyToEmail,
         subject: emailSubject,
         attachmentsCount: emailAttachments.length,

@@ -13,6 +13,12 @@ export function cn(...inputs: ClassValue[]) {
  // - #icreditlink (renders as HTML link with icreditText)
  // - #iformslink (renders as HTML link with iformsText)
  // - #nameofpatient
+ // - #ClalitText (conditionally replaced based on sendClalitInfo flag)
+ // Optional blood test tokens:
+ // - #DayOfWeek
+ // - #Date
+ // - #Hour
+ // - #Location
  export function renderTemplate(
    body: string,
    vars: {
@@ -24,6 +30,13 @@ export function cn(...inputs: ClassValue[]) {
      iformsText: string
      iformsLink: string
      patientName: string
+     clalitText?: string
+     sendClalitInfo?: boolean
+     // Optional blood test scheduling fields
+     dayOfWeek?: string
+     date?: string
+     hour?: string
+     location?: string
    }
  ): string {
    // Create HTML links for iCredit and iForms
@@ -39,10 +52,41 @@ export function cn(...inputs: ClassValue[]) {
      "#nameofpatient": vars.patientName,
    };
 
+   // Add optional blood test fields if provided
+   if (vars.dayOfWeek) {
+     map["#DayOfWeek"] = vars.dayOfWeek;
+   }
+   if (vars.date) {
+     // Convert date from yyyy-mm-dd to dd-mm-yyyy format
+     const dateParts = vars.date.split('-');
+     if (dateParts.length === 3) {
+       map["#Date"] = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+     } else {
+       map["#Date"] = vars.date; // Fallback to original if format is unexpected
+     }
+   }
+   if (vars.hour) {
+     map["#Hour"] = vars.hour;
+   }
+   if (vars.location) {
+     map["#Location"] = vars.location;
+   }
+
   let out = body;
   for (const [token, value] of Object.entries(map)) {
     // Simple replace-all using split/join to avoid regex escaping issues
     out = out.split(token).join(value);
   }
+  
+  // Handle Clalit text placeholder
+  // If sendClalitInfo is true and clalitText is provided, replace with the text
+  // Otherwise, remove the placeholder entirely
+  if (vars.sendClalitInfo && vars.clalitText) {
+    out = out.split("#ClalitText").join(vars.clalitText);
+  } else {
+    // Remove the placeholder completely (including any surrounding paragraph tags if empty)
+    out = out.split("#ClalitText").join("");
+  }
+  
   return out;
 }
