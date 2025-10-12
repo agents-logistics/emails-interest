@@ -32,7 +32,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           body: parsed.body,
           ...(parsed.subject && { subject: parsed.subject }),
           isRTL: parsed.isRTL ?? true,
-          ...(parsed.reply_to && { reply_to: parsed.reply_to }),
           ...(parsed.clalitText && { clalitText: parsed.clalitText }),
         },
         include: {
