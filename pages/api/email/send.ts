@@ -200,17 +200,100 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Preserve font-size and other styles in spans (Quill uses spans for inline formatting)
     // No need to modify spans, they already have correct inline styles from Quill
 
-    // Create proper HTML email structure
+    // Create proper HTML email structure with responsive design
     const htmlEmail = `<!DOCTYPE html>
 <html dir="${isRTL ? 'rtl' : 'ltr'}" lang="${isRTL ? 'he' : 'en'}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${parsed.subject ?? templateSubject ?? test.name}</title>
+  <style>
+    /* Responsive styles for email clients that support CSS */
+    @media only screen and (max-width: 599px) {
+      .email-container {
+        background-color: transparent !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        padding: 20px !important;
+      }
+      .email-body-wrapper {
+        padding: 10px !important;
+      }
+      body {
+        padding: 10px !important;
+      }
+    }
+    @media only screen and (max-width: 479px) {
+      .email-container {
+        padding: 10px !important;
+      }
+      .email-body-wrapper {
+        padding: 5px !important;
+      }
+      body {
+        padding: 5px !important;
+      }
+    }
+    @media only screen and (max-width: 319px) {
+      .email-container {
+        padding: 5px !important;
+      }
+      .email-body-wrapper {
+        padding: 0 !important;
+      }
+      body {
+        padding: 2px !important;
+      }
+    }
+    /* Ensure text doesn't overflow on small screens */
+    .email-body-wrapper {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      max-width: 100%;
+      font-size: 16px !important;
+      line-height: 1.6 !important;
+    }
+    /* Responsive images */
+    .email-body-wrapper img {
+      max-width: 100% !important;
+      height: auto !important;
+    }
+    /* Responsive tables */
+    .email-body-wrapper table {
+      max-width: 100% !important;
+      width: 100% !important;
+    }
+    /* Responsive links - ensure they don't break layout */
+    .email-body-wrapper a {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+    /* Email client font-size compatibility */
+    .email-body-wrapper p {
+      font-size: 16px !important;
+      line-height: 1.6 !important;
+    }
+    .email-body-wrapper span[style*="font-size"] {
+      /* Preserve user-selected font sizes from Quill editor - don't inherit */
+    }
+    .email-body-wrapper div {
+      font-size: inherit !important;
+    }
+    /* Gmail-specific fixes */
+    .gmail_default .email-body-wrapper {
+      font-size: 16px !important;
+    }
+    /* Ensure tables inherit base font size */
+    .email-body-wrapper table {
+      font-size: 16px !important;
+    }
+  </style>
 </head>
 <body style="font-family: ${isRTL ? 'Arial, \'David\', \'Times New Roman\', sans-serif' : 'Arial, Helvetica, sans-serif'}; direction: ${isRTL ? 'rtl' : 'ltr'}; margin: 0; padding: 20px; background-color: #f5f5f5;">
-  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-    ${rendered}
+  <div class="email-container" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <div class="email-body-wrapper" style="font-size: 16px; line-height: 1.6;">
+      ${rendered}
+    </div>
   </div>
 </body>
 </html>`;

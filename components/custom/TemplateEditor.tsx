@@ -750,8 +750,12 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
           <h3 className="text-lg font-medium text-gray-900 mb-4">Template Preview</h3>
           <div
             dir={previewRTL ? 'rtl' : 'ltr'}
-            className="bg-white border border-gray-200 rounded p-4 min-h-[200px]"
-            style={{ fontFamily: previewRTL ? 'Arial, sans-serif' : 'inherit' }}
+            className="bg-white border border-gray-200 rounded p-4 sm:p-6 min-h-[200px] overflow-x-auto"
+            style={{ 
+              fontFamily: previewRTL ? 'Arial, sans-serif' : 'inherit',
+              wordWrap: 'break-word',
+              overflowWrap: 'break-word'
+            }}
             dangerouslySetInnerHTML={{ __html: preview }}
           />
 

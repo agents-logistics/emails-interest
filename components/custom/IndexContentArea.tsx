@@ -47,6 +47,20 @@ type ApiListTemplatesResp = { templates: EmailTemplate[] };
 type PreviewResp = { preview: string; isRTL: boolean; to: string; cc: string[] };
 
 const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigation }) => {
+  // Helper function to convert English day names to Hebrew
+  const getHebrewDayOfWeek = (englishDay: string): string => {
+    const dayMapping: Record<string, string> = {
+      'Sunday': 'ראשון',
+      'Monday': 'שני',
+      'Tuesday': 'שלישי',
+      'Wednesday': 'רביעי',
+      'Thursday': 'חמישי',
+      'Friday': 'שישי',
+      'Saturday': 'שבת'
+    };
+    return dayMapping[englishDay] || englishDay;
+  };
+
   // Data lists
   const [tests, setTests] = useState<PatientTest[]>([]);
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
@@ -127,6 +141,12 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
            originalTemplate.includes('#Date') || 
            originalTemplate.includes('#Hour') || 
            originalTemplate.includes('#Location');
+  }, [templates]);
+
+  // Check if template contains Clalit insurance placeholder
+  const templateHasClalitField = useMemo(() => {
+    const originalTemplate = templates.length > 0 ? templates[0].body : '';
+    return originalTemplate.includes('#ClalitText');
   }, [templates]);
 
   // Load tests, locations, user session, and CC defaults on mount
@@ -348,7 +368,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
           iformsLink: selectedPricingOption.iformsLink,
           sendClalitInfo,
           // Blood test scheduling fields (optional)
-          dayOfWeek: bloodTestDayOfWeek || undefined,
+          dayOfWeek: bloodTestDayOfWeek ? getHebrewDayOfWeek(bloodTestDayOfWeek) : undefined,
           date: bloodTestDate || undefined,
           hour: bloodTestHour || undefined,
           location: bloodTestLocation || undefined,
@@ -454,7 +474,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         temporaryAttachmentIds: temporaryAttachments.map(att => att.id),
         sendClalitInfo,
         // Blood test scheduling fields (optional)
-        dayOfWeek: bloodTestDayOfWeek || undefined,
+        dayOfWeek: bloodTestDayOfWeek ? getHebrewDayOfWeek(bloodTestDayOfWeek) : undefined,
         date: bloodTestDate || undefined,
         hour: bloodTestHour || undefined,
         location: bloodTestLocation || undefined,
@@ -904,46 +924,48 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                   );
                 })()}
 
-            {/* Insurance Information Section - Full Width */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 border-b border-indigo-200 px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+            {/* Insurance Information Section - Full Width - Conditionally Rendered */}
+            {templateHasClalitField && (
+              <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 border-b border-indigo-200 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-800">Insurance Information</h3>
                   </div>
-                  <h3 className="text-lg font-bold text-gray-800">Insurance Information</h3>
+                </div>
+                <div className="p-4">
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      id="sendClalitInfo"
+                      checked={sendClalitInfo}
+                      onChange={(e) => {
+                        setSendClalitInfo(e.target.checked);
+                        // Clear the preview when checkbox changes to force re-preview
+                        if (showTemplateEditor) {
+                          setShowTemplateEditor(false);
+                          setEmailContent('');
+                        }
+                      }}
+                      className="w-5 h-5 text-blue-600 bg-white border-2 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="sendClalitInfo" className="text-sm font-semibold text-gray-700">
+                      Send Clalit Information
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-2 ml-8">
+                    Check this box if the patient has Clalit insurance. This will include Clalit-specific text in the email where #ClalitText appears in the template.
+                    {showTemplateEditor && (
+                      <span className="text-orange-600 font-medium"> Click &quot;Preview Email&quot; again to see the updated content.</span>
+                    )}
+                  </p>
                 </div>
               </div>
-              <div className="p-4">
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    id="sendClalitInfo"
-                    checked={sendClalitInfo}
-                    onChange={(e) => {
-                      setSendClalitInfo(e.target.checked);
-                      // Clear the preview when checkbox changes to force re-preview
-                      if (showTemplateEditor) {
-                        setShowTemplateEditor(false);
-                        setEmailContent('');
-                      }
-                    }}
-                    className="w-5 h-5 text-blue-600 bg-white border-2 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor="sendClalitInfo" className="text-sm font-semibold text-gray-700">
-                    Send Clalit Information
-                  </label>
-                </div>
-                <p className="text-xs text-gray-600 mt-2 ml-8">
-                  Check this box if the patient has Clalit insurance. This will include Clalit-specific text in the email where #ClalitText appears in the template.
-                  {showTemplateEditor && (
-                    <span className="text-orange-600 font-medium"> Click &quot;Preview Email&quot; again to see the updated content.</span>
-                  )}
-                </p>
-              </div>
-            </div>
+            )}
 
             <FormError message={error} />
             {success && (
@@ -1230,7 +1252,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         onOpenChange={setShowSendConfirmation}
         onConfirm={handleSend}
         title="Confirm Email Send"
-        description={`Are you sure you want to send the email for "${selectedTest?.name}" to ${toEmail}?${selectedPricingOption ? `\n\nPricing: ${selectedPricingOption.installment} installment${selectedPricingOption.installment !== 1 ? 's' : ''} - ${selectedPricingOption.price.toLocaleString()} ₪` : ''}${ccEmails.trim() ? `\n\nCC: ${ccEmails}` : ''}${replyToEmail ? `\n\nReply-To: ${replyToEmail}` : ''}${previewAttachments.length > 0 ? `\n\nTemplate Attachments: ${previewAttachments.length} file(s)` : ''}${temporaryAttachments.length > 0 ? `\n\nAdditional Attachments: ${temporaryAttachments.length} file(s)` : ''}\n\nThis action will send the email immediately via Amazon SES.`}
+        description={`Are you sure you want to send the email for "${selectedTest?.name}" Test?\n\nTo: ${toEmail}${selectedPricingOption ? `\n\nPricing: ${selectedPricingOption.installment} installment${selectedPricingOption.installment !== 1 ? 's' : ''} - ${selectedPricingOption.price.toLocaleString()} ₪` : ''}${ccEmails.trim() ? `\n\nCC: ${ccEmails}` : ''}${replyToEmail ? `\n\nReply-To: ${replyToEmail}` : ''}${previewAttachments.length > 0 ? `\n\nTemplate Attachments: ${previewAttachments.length} file(s)` : ''}${temporaryAttachments.length > 0 ? `\n\nAdditional Attachments: ${temporaryAttachments.length} file(s)` : ''}`}
         isSending={sending}
       />
     </div>
