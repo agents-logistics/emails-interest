@@ -225,6 +225,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       preview,
       isRTL,
       to: parsed.toEmail,
+      subject: parsed.subject,
       attachments,
     });
   } catch (err: any) {

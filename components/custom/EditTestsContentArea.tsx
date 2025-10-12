@@ -33,7 +33,6 @@ type PatientTest = {
   id: string;
   name: string;
   templateNames: string[];
-  emailCopies: string[];
   pricingOptions: PricingOption[];
 };
 
@@ -50,7 +49,6 @@ type EditablePricingOption = {
 const EditTestSchema = z.object({
   name: z.string().trim().min(1, { message: "Test name is required" }),
   templateNamesCsv: z.string().min(1, { message: "At least one template name is required" }),
-  emailCopiesCsv: z.string().min(1, { message: "At least one email copy is required" }),
 });
 
 type TestFormValues = z.infer<typeof EditTestSchema>;
@@ -77,7 +75,6 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
     defaultValues: {
       name: '',
       templateNamesCsv: '',
-      emailCopiesCsv: '',
     },
     mode: 'onChange',
   });
@@ -128,7 +125,6 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
     form.reset({
       name: test.name,
       templateNamesCsv: test.templateNames.join(', '),
-      emailCopiesCsv: test.emailCopies.join(', '),
     });
 
     // Set pricing options for the UI
@@ -173,7 +169,6 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
         id: editingTest.id,
         name: values.name,
         templateNamesCsv: values.templateNamesCsv,
-        emailCopiesCsv: values.emailCopiesCsv,
         pricingOptions: validatedOptions,
       };
 

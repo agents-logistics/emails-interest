@@ -31,7 +31,6 @@ type PricingOption = {
 const AddTestSchema = z.object({
   name: z.string().trim().min(1, { message: "Test name is required" }),
   templateNamesCsv: z.string().min(1, { message: "At least one template name is required" }),
-  emailCopiesCsv: z.string().min(1, { message: "At least one email copy is required" }),
 });
 
 type TestFormValues = z.infer<typeof AddTestSchema>;
@@ -42,7 +41,6 @@ const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavig
     defaultValues: {
       name: '',
       templateNamesCsv: '',
-      emailCopiesCsv: '',
     },
     mode: 'onChange',
   });
@@ -97,7 +95,6 @@ const AddTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavig
       const payload = {
         name: values.name,
         templateNamesCsv: values.templateNamesCsv,
-        emailCopiesCsv: values.emailCopiesCsv,
         pricingOptions: validatedOptions,
       };
 

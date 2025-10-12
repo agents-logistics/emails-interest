@@ -206,7 +206,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${parsed.subject ?? test.name}</title>
+  <title>${parsed.subject ?? templateSubject ?? test.name}</title>
 </head>
 <body style="font-family: ${isRTL ? 'Arial, \'David\', \'Times New Roman\', sans-serif' : 'Arial, Helvetica, sans-serif'}; direction: ${isRTL ? 'rtl' : 'ltr'}; margin: 0; padding: 20px; background-color: #f5f5f5;">
   <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -230,8 +230,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const replyToEmail = parsed.replyTo;
     console.log('replyToEmail', replyToEmail);
 
-    // Use subject from template if available, otherwise use provided subject, or fall back to test name
-    const emailSubject = templateSubject || parsed.subject || test.name;
+    // Use custom subject from form if provided, otherwise use template subject, or fall back to test name
+    const emailSubject = parsed.subject || templateSubject || test.name;
     console.log('emailSubject', emailSubject);
 
     // Load attachments from template

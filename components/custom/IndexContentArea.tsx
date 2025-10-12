@@ -333,6 +333,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         body: JSON.stringify({
           testId: selectedTest.id,
           body: bodyToUse,
+          subject: emailSubject || undefined,
           isRTL: isRTLToUse,
           nameOnTemplate,
           installment: selectedPricingOption.installment,
@@ -471,12 +472,14 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
       }
 
       // Enhanced success message with more details
-      const allRecipients = data.recipients || [data.to, ...(data.cc || [])];
+      const toRecipient = data.to || toEmail;
+      const ccRecipients = data.cc || (ccEmails.trim() ? ccEmails.split(',').map(e => e.trim()).filter(Boolean) : []);
 
       setSuccess(
         `Email sent successfully via Amazon SES!\n` +
         `Subject: ${data.subject || selectedTest.name}\n` +
-        `To: ${allRecipients.join(', ')}\n` +
+        `To: ${toRecipient}\n` +
+        `${ccRecipients.length > 0 ? `CC: ${ccRecipients.join(', ')}\n` : ''}` +
         `${data.attachmentsCount > 0 ? `Attachments: ${data.attachmentsCount} file(s)\n` : ''}` +
         `Email delivered successfully!`
       );
@@ -959,21 +962,8 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                 <div className="flex justify-center mt-4">
                   <Button
                     onClick={() => {
-                      // Reset form state for sending another email
-                      setSuccess(undefined);
-                      setError(undefined);
-                      setShowTemplateEditor(false);
-                      setPatientName('');
-                      setToEmail('');
-                      setEmailSubject('');
-                      setCcEmails('');
-                      setPreview('');
-                      // Clear blood test fields
-                      setBloodTestDayOfWeek('');
-                      setBloodTestDate('');
-                      setBloodTestHour('');
-                      setBloodTestLocation('');
-                      // Keep emailContent for potential reuse, but hide the editor
+                      // Refresh the page to reset everything
+                      window.location.reload();
                     }}
                     variant="outline"
                     size="lg"
