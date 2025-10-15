@@ -347,6 +347,11 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         return;
       }
 
+      // Build CC list: always include reply-to email plus any user-specified CCs
+      const ccList = ccEmails.trim() 
+        ? `${replyToEmail}, ${ccEmails}` 
+        : replyToEmail;
+
       const res = await fetch('/api/email/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -361,7 +366,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
           toEmail,
           patientName,
           replyTo: replyToEmail,
-          ccEmails: ccEmails,
+          ccEmails: ccList,
           icreditText: selectedPricingOption.icreditText,
           icreditLink: selectedPricingOption.icreditLink,
           iformsText: selectedPricingOption.iformsText,
@@ -455,6 +460,12 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
 
       // Always use JSON - temporary attachments are already uploaded
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      
+      // Build CC list: always include reply-to email plus any user-specified CCs
+      const ccList = ccEmails.trim() 
+        ? `${replyToEmail}, ${ccEmails}` 
+        : replyToEmail;
+      
       const requestBody = JSON.stringify({
         testId: selectedTest.id,
         body: emailContent,
@@ -466,7 +477,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         toEmail,
         patientName,
         replyTo: replyToEmail,
-        ccEmails: ccEmails,
+        ccEmails: ccList,
         icreditText: selectedPricingOption.icreditText,
         icreditLink: selectedPricingOption.icreditLink,
         iformsText: selectedPricingOption.iformsText,
@@ -788,7 +799,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                       className="border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all font-medium h-11"
                     />
                     <p className="text-xs text-gray-500 mt-2 ml-1">
-                      Enter email addresses separated by commas, or click preset buttons below
+                      Enter email addresses separated by commas, or click preset buttons below. Note: The reply-to email will be automatically CC'd.
                     </p>
                     
                     {ccDefaultEmails.length > 0 && (
@@ -1252,7 +1263,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         onOpenChange={setShowSendConfirmation}
         onConfirm={handleSend}
         title="Confirm Email Send"
-        description={`Are you sure you want to send the email for "${selectedTest?.name}" Test?\n\nTo: ${toEmail}${selectedPricingOption ? `\n\nPricing: ${selectedPricingOption.installment} installment${selectedPricingOption.installment !== 1 ? 's' : ''} - ${selectedPricingOption.price.toLocaleString()} ₪` : ''}${ccEmails.trim() ? `\n\nCC: ${ccEmails}` : ''}${replyToEmail ? `\n\nReply-To: ${replyToEmail}` : ''}${previewAttachments.length > 0 ? `\n\nTemplate Attachments: ${previewAttachments.length} file(s)` : ''}${temporaryAttachments.length > 0 ? `\n\nAdditional Attachments: ${temporaryAttachments.length} file(s)` : ''}`}
+        description={`Are you sure you want to send the email for "${selectedTest?.name}" Test?\n\nTo: ${toEmail}${selectedPricingOption ? `\n\nPricing: ${selectedPricingOption.installment} installment${selectedPricingOption.installment !== 1 ? 's' : ''} - ${selectedPricingOption.price.toLocaleString()} ₪` : ''}${ccEmails.trim() ? `\n\nCC: ${replyToEmail}, ${ccEmails}` : `\n\nCC: ${replyToEmail}`}${replyToEmail ? `\n\nReply-To: ${replyToEmail}` : ''}${previewAttachments.length > 0 ? `\n\nTemplate Attachments: ${previewAttachments.length} file(s)` : ''}${temporaryAttachments.length > 0 ? `\n\nAdditional Attachments: ${temporaryAttachments.length} file(s)` : ''}`}
         isSending={sending}
       />
     </div>
