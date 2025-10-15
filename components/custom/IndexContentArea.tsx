@@ -799,7 +799,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                       className="border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all font-medium h-11"
                     />
                     <p className="text-xs text-gray-500 mt-2 ml-1">
-                      Enter email addresses separated by commas, or click preset buttons below. Note: The reply-to email will be automatically CC'd.
+                      Enter email addresses separated by commas, or click preset buttons below. Note: The reply-to email will be automatically CC&apos;d.
                     </p>
                     
                     {ccDefaultEmails.length > 0 && (
