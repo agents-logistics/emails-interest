@@ -105,13 +105,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // Fetch signature based on replyTo email
+    // Fetch signature based on signatureId (if provided)
     let signatureContent: string | undefined;
-    const signatureRecord = await db.signature.findUnique({
-      where: { email: parsed.replyTo },
-    });
-    if (signatureRecord) {
-      signatureContent = signatureRecord.content;
+    if (parsed.signatureId) {
+      const signatureRecord = await db.signature.findUnique({
+        where: { id: parsed.signatureId },
+      });
+      if (signatureRecord) {
+        signatureContent = signatureRecord.content;
+      }
     }
 
     // Render template with placeholders replaced

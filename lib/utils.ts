@@ -93,9 +93,9 @@ export function cn(...inputs: ClassValue[]) {
   // If signature is provided, replace with the signature content
   // Otherwise, remove the placeholder entirely
   if (vars.signature) {
-    out = out.split("#signature").join(vars.signature);
+    out = out.split("#Signature").join(vars.signature);
   } else {
-    out = out.split("#signature").join("");
+    out = out.split("#Signature").join("");
   }
   
   return out;

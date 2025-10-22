@@ -560,11 +560,29 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
                 </div>
               </div>
               
+              {/* Optional Placeholders */}
+              <div>
+                <p className="text-xs font-medium text-gray-600 mb-2">Optional Placeholders</p>
+                <div className="flex gap-2 flex-wrap">
+                  {['#ClalitText', '#Signature'].map((token) => (
+                    <button
+                      key={token}
+                      type="button"
+                      className="px-3 py-2 text-xs bg-purple-600 text-white border border-purple-700 rounded hover:bg-purple-700 transition-colors font-medium"
+                      onClick={() => insertToken(token)}
+                      title={token === '#Signature' ? 'Insert signature placeholder (auto-filled based on reply-to email)' : 'Insert Clalit text placeholder (filled when Clalit checkbox is checked)'}
+                    >
+                      {token}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
               {/* Optional Blood Test Scheduling Placeholders */}
               <div>
                 <p className="text-xs font-medium text-gray-600 mb-2">Blood Test Scheduling (Optional)</p>
                 <div className="flex gap-2 flex-wrap">
-                  {OPTIONAL_TEMPLATE_TOKENS.map((token) => (
+                  {['#DayOfWeek', '#Date', '#Hour', '#Location'].map((token) => (
                     <button
                       key={token}
                       type="button"
@@ -583,7 +601,7 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
             </p>
             <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
               <p className="text-xs text-blue-800">
-                💡 <strong>Tip:</strong> Use the toolbar to format text and insert images. The 🖼️ image button lets you upload images (like signatures). All formatting will be preserved in emails.
+                💡 <strong>Tip:</strong> Use the toolbar to format text and insert images. The #Signature placeholder is automatically filled based on the reply-to email selected when sending. Create signatures in the Signatures page.
               </p>
             </div>
           </div>

@@ -36,11 +36,11 @@ export const REQUIRED_TEMPLATE_TOKENS = [
   "#icreditlink",
   "#iformslink",
   "#nameofpatient",
-  "#ClalitText",
-  "#signature",
 ] as const;
 
 export const OPTIONAL_TEMPLATE_TOKENS = [
+  "#ClalitText",
+  "#Signature",
   "#DayOfWeek",
   "#Date",
   "#Hour",
@@ -114,6 +114,7 @@ export const EmailPreviewSchema = z
     replyTo: z.string().email({ message: "Reply-to email is required" }),
     ccEmails: z.string().optional(),
     sendClalitInfo: z.boolean().optional().default(false),
+    signatureId: z.string().optional(),
     // Optional blood test scheduling fields
     dayOfWeek: z.string().optional(),
     date: z.string().optional(),

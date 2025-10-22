@@ -446,6 +446,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
           iformsText: selectedPricingOption.iformsText,
           iformsLink: selectedPricingOption.iformsLink,
           sendClalitInfo,
+          signatureId: selectedSignatureId || undefined,
           // Blood test scheduling fields (optional)
           dayOfWeek: bloodTestDayOfWeek ? getHebrewDayOfWeek(bloodTestDayOfWeek) : undefined,
           date: bloodTestDate || undefined,
@@ -560,6 +561,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         temporaryAttachmentIds: temporaryAttachments.map(att => att.id),
         excludedAttachmentIds: excludedAttachmentIds,
         sendClalitInfo,
+        signatureId: selectedSignatureId || undefined,
         // Blood test scheduling fields (optional)
         dayOfWeek: bloodTestDayOfWeek ? getHebrewDayOfWeek(bloodTestDayOfWeek) : undefined,
         date: bloodTestDate || undefined,
@@ -904,10 +906,10 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                     )}
                     <p className="text-xs text-gray-500 mt-2 ml-1">
                       {selectedSignatureId 
-                        ? 'Signature automatically selected based on Reply-To email. You can change it manually.'
+                        ? 'Selected signature will replace the #Signature placeholder in your template.'
                         : signatures.length > 0 
-                          ? 'No signature found for selected Reply-To email. You can select one manually or create one in the Signatures page.'
-                          : 'Create signatures in the Signatures page to add them to your emails.'}
+                          ? 'Select a signature to use, or create one in the Signatures page. Add #Signature placeholder in your template where you want it to appear.'
+                          : 'Create signatures in the Signatures page to add them to your emails. Add #Signature placeholder in your template.'}
                     </p>
                   </div>
 
