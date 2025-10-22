@@ -1,7 +1,7 @@
 'use client';
 import {  FC, useEffect, useState } from 'react';
 import Navigation from '@/components/custom/Navigation';
-import AddSignatureContentArea from '@/components/custom/AddSignatureContentArea';
+import SignaturesContentArea from '@/components/custom/SignaturesContentArea';
 
 const SignaturesPage: FC = () => {
   const [showNavigation, setShowNavigation] = useState<boolean>(true);
@@ -16,7 +16,7 @@ const SignaturesPage: FC = () => {
   return (
     <div className='flex bg-carevox h-screen'>
       {showNavigation && <Navigation consultid='' onHide={handleHideNavigation} />}
-      <AddSignatureContentArea onShowNavigation={handleShowNavigation} showNavigation={showNavigation} />
+      <SignaturesContentArea onShowNavigation={handleShowNavigation} showNavigation={showNavigation} />
     </div>
   );
 };
