@@ -37,6 +37,7 @@ export const REQUIRED_TEMPLATE_TOKENS = [
   "#iformslink",
   "#nameofpatient",
   "#ClalitText",
+  "#signature",
 ] as const;
 
 export const OPTIONAL_TEMPLATE_TOKENS = [

@@ -270,3 +270,12 @@ model CCDefaultEmail {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model Signature {
+  id        String   @id @default(cuid())
+  email     String   @unique  // Email address this signature belongs to
+  name      String              // Display name for signature selector
+  content   String              // Rich HTML content (from WYSIWYG editor)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

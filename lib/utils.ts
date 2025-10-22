@@ -32,6 +32,7 @@ export function cn(...inputs: ClassValue[]) {
      patientName: string
      clalitText?: string
      sendClalitInfo?: boolean
+     signature?: string
      // Optional blood test scheduling fields
      dayOfWeek?: string
      date?: string
@@ -86,6 +87,15 @@ export function cn(...inputs: ClassValue[]) {
   } else {
     // Remove the placeholder completely (including any surrounding paragraph tags if empty)
     out = out.split("#ClalitText").join("");
+  }
+  
+  // Handle signature placeholder
+  // If signature is provided, replace with the signature content
+  // Otherwise, remove the placeholder entirely
+  if (vars.signature) {
+    out = out.split("#signature").join(vars.signature);
+  } else {
+    out = out.split("#signature").join("");
   }
   
   return out;

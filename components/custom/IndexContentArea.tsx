@@ -77,6 +77,15 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
   const [ccDefaultEmails, setCcDefaultEmails] = useState<{id: string; name: string; email: string}[]>([]);
   const [sendClalitInfo, setSendClalitInfo] = useState<boolean>(false);
   
+  // Verified emails state
+  const [verifiedEmails, setVerifiedEmails] = useState<string[]>([]);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
+  const [isCurrentUserVerified, setIsCurrentUserVerified] = useState<boolean>(true);
+  
+  // Signatures state
+  const [signatures, setSignatures] = useState<{id: string; email: string; name: string}[]>([]);
+  const [selectedSignatureId, setSelectedSignatureId] = useState<string>('');
+  
   // Blood test scheduling fields
   const [bloodTestDayOfWeek, setBloodTestDayOfWeek] = useState<string>('');
   const [bloodTestDate, setBloodTestDate] = useState<string>('');
@@ -93,6 +102,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
   const [preview, setPreview] = useState<string>('');
   const [previewRTL, setPreviewRTL] = useState<boolean>(true);
   const [previewAttachments, setPreviewAttachments] = useState<any[]>([]);
+  const [excludedAttachmentIds, setExcludedAttachmentIds] = useState<string[]>([]);
   
   // Per-email attachments (temporary, not saved to template)
   type TempAttachment = {
@@ -193,7 +203,8 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         const res = await fetch('/api/auth/session');
         const session = await res.json();
         if (session?.user?.email) {
-          setReplyToEmail(session.user.email);
+          setCurrentUserEmail(session.user.email);
+          // replyToEmail will be set by the verification check useEffect
         }
       } catch (e: any) {
         console.error('Failed to load user session:', e);
@@ -214,6 +225,34 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
       }
     };
     loadCCDefaults();
+
+    // Load signatures
+    const loadSignatures = async () => {
+      try {
+        const res = await fetch('/api/signatures');
+        const data = await res.json();
+        if (res.ok) {
+          setSignatures(data.signatures);
+        }
+      } catch (e: any) {
+        console.error('Failed to load signatures:', e);
+      }
+    };
+    loadSignatures();
+
+    // Load verified SES emails
+    const loadVerifiedEmails = async () => {
+      try {
+        const res = await fetch('/api/verified-ses-emails');
+        const data = await res.json();
+        if (res.ok) {
+          setVerifiedEmails(data.verifiedEmails);
+        }
+      } catch (e: any) {
+        console.error('Failed to load verified emails:', e);
+      }
+    };
+    loadVerifiedEmails();
   }, []);
 
   // Initialize dependent fields when test changes
@@ -271,6 +310,41 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
     initForTest();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTestId]);
+
+  // Check verification status and set default reply-to email
+  useEffect(() => {
+    if (currentUserEmail && verifiedEmails.length > 0) {
+      const isVerified = verifiedEmails.includes(currentUserEmail);
+      setIsCurrentUserVerified(isVerified);
+      // Set replyToEmail to current user if verified, else agents@progenetics.co.il
+      setReplyToEmail(isVerified ? currentUserEmail : 'agents@progenetics.co.il');
+    } else if (verifiedEmails.length > 0 && !currentUserEmail) {
+      // No user email, default to agents@progenetics.co.il
+      setReplyToEmail('agents@progenetics.co.il');
+    }
+  }, [currentUserEmail, verifiedEmails]);
+
+  // Auto-select signature based on replyToEmail
+  useEffect(() => {
+    if (replyToEmail && signatures.length > 0) {
+      const matchingSignature = signatures.find(sig => sig.email === replyToEmail);
+      if (matchingSignature) {
+        setSelectedSignatureId(matchingSignature.id);
+      } else {
+        setSelectedSignatureId(''); // No signature for this email
+      }
+    }
+  }, [replyToEmail, signatures]);
+
+  // Automatically determine day of week from selected date
+  useEffect(() => {
+    if (bloodTestDate) {
+      const date = new Date(bloodTestDate + 'T00:00:00'); // Add time to avoid timezone issues
+      const dayIndex = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      setBloodTestDayOfWeek(dayNames[dayIndex]);
+    }
+  }, [bloodTestDate]);
 
   const handleGeneratePreview = async () => {
     setError(undefined);
@@ -389,6 +463,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
       setEmailContent(data.preview);
       setEmailIsRTL(Boolean(data.isRTL));
       setPreviewAttachments(data.attachments || []);
+      setExcludedAttachmentIds([]); // Reset excluded attachments on new preview
       setShowTemplateEditor(true);
     } catch (e: any) {
       setError(e?.message || 'Unexpected error generating preview');
@@ -483,6 +558,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         iformsText: selectedPricingOption.iformsText,
         iformsLink: selectedPricingOption.iformsLink,
         temporaryAttachmentIds: temporaryAttachments.map(att => att.id),
+        excludedAttachmentIds: excludedAttachmentIds,
         sendClalitInfo,
         // Blood test scheduling fields (optional)
         dayOfWeek: bloodTestDayOfWeek ? getHebrewDayOfWeek(bloodTestDayOfWeek) : undefined,
@@ -522,6 +598,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
       setCcEmails('');
       setEmailContent('');
       setTemporaryAttachments([]);
+      setExcludedAttachmentIds([]);
       setSendClalitInfo(false);
       setShowTemplateEditor(false);
       // Clear blood test fields
@@ -775,15 +852,62 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                     <label className="block text-sm font-semibold mb-2 text-gray-700">
                       Reply-To Email <span className="text-red-500">*</span>
                     </label>
-                    <Input
-                      type="email"
-                      placeholder="your.email@example.com"
+                    <select
+                      className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all bg-white text-gray-900 font-medium h-11"
                       value={replyToEmail}
                       onChange={(e) => setReplyToEmail(e.target.value)}
-                      className="border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all font-medium h-11"
-                    />
+                    >
+                      {verifiedEmails.length === 0 ? (
+                        <option value="">Loading verified emails...</option>
+                      ) : (
+                        verifiedEmails.map((email) => (
+                          <option key={email} value={email}>{email}</option>
+                        ))
+                      )}
+                    </select>
+                    {!isCurrentUserVerified && currentUserEmail && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-xs text-red-700 font-semibold">
+                          ⚠️ Your email ({currentUserEmail}) is not verified in AWS SES. 
+                          Please verify it in the AWS SES dashboard to use it as reply-to email.
+                        </p>
+                      </div>
+                    )}
                     <p className="text-xs text-gray-500 mt-2 ml-1">
-                      Replies will be sent to this address. Defaults to your account email.
+                      Replies will be sent to this address. The email will be sent FROM this address so it appears in your Sent folder.
+                      {verifiedEmails.length > 0 ? ' Only verified AWS SES emails are shown.' : ''}
+                    </p>
+                  </div>
+
+                  {/* Signature Selector */}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">
+                      Email Signature
+                    </label>
+                    {signatures.length === 0 ? (
+                      <div className="w-full border-2 border-gray-200 rounded-lg px-4 py-2.5 bg-gray-50 text-gray-500 font-medium h-11 flex items-center">
+                        No signatures available
+                      </div>
+                    ) : (
+                      <select
+                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all bg-white text-gray-900 font-medium h-11"
+                        value={selectedSignatureId}
+                        onChange={(e) => setSelectedSignatureId(e.target.value)}
+                      >
+                        <option value="">No signature</option>
+                        {signatures.map((sig) => (
+                          <option key={sig.id} value={sig.id}>
+                            {sig.email} - {sig.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <p className="text-xs text-gray-500 mt-2 ml-1">
+                      {selectedSignatureId 
+                        ? 'Signature automatically selected based on Reply-To email. You can change it manually.'
+                        : signatures.length > 0 
+                          ? 'No signature found for selected Reply-To email. You can select one manually or create one in the Signatures page.'
+                          : 'Create signatures in the Signatures page to add them to your emails.'}
                     </p>
                   </div>
 
@@ -860,22 +984,18 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                         {originalTemplate.includes('#DayOfWeek') && (
                           <div>
                             <label className="block text-sm font-semibold mb-2 text-gray-700">
-                              Day of Week <span className="text-red-500">*</span>
+                              Day of Week <span className="text-blue-500 text-xs font-normal">(Auto-calculated)</span>
                             </label>
-                            <select
-                              className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white font-medium"
-                              value={bloodTestDayOfWeek}
-                              onChange={(e) => setBloodTestDayOfWeek(e.target.value)}
-                            >
-                              <option value="">Select day...</option>
-                              <option value="Sunday">Sunday</option>
-                              <option value="Monday">Monday</option>
-                              <option value="Tuesday">Tuesday</option>
-                              <option value="Wednesday">Wednesday</option>
-                              <option value="Thursday">Thursday</option>
-                              <option value="Friday">Friday</option>
-                              <option value="Saturday">Saturday</option>
-                            </select>
+                            <Input
+                              type="text"
+                              readOnly
+                              value={bloodTestDayOfWeek || 'Select a date first'}
+                              className="border-2 border-gray-300 rounded-lg px-4 py-2.5 bg-gray-50 font-medium h-11 cursor-not-allowed"
+                              placeholder="Auto-filled from date"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Automatically determined from the selected date
+                            </p>
                           </div>
                         )}
                         
@@ -1072,6 +1192,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                     showConfigurationSection={false}
                     showPreviewSection={false}
                     showAttachmentsSection={false}
+                    showPlaceholdersSection={false}
                   />
 
                   {/* Template Attachments Preview */}
@@ -1083,40 +1204,84 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                         </svg>
                         <h4 className="text-sm font-bold text-gray-800">Template Attachments</h4>
                       </div>
-                      <p className="text-xs text-gray-500 mb-2">These files are attached from the template</p>
+                      <p className="text-xs text-gray-500 mb-2">These files are attached from the template. Click &quot;Remove&quot; to exclude from this email.</p>
                       <div className="space-y-2">
-                        {previewAttachments.map((attachment) => (
-                          <div key={attachment.id} className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                </svg>
+                        {previewAttachments.map((attachment) => {
+                          const isExcluded = excludedAttachmentIds.includes(attachment.id);
+                          return (
+                            <div 
+                              key={attachment.id} 
+                              className={`flex items-center justify-between p-3 border rounded-lg transition-all ${
+                                isExcluded 
+                                  ? 'bg-gray-100 border-gray-300 opacity-60' 
+                                  : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                  isExcluded ? 'bg-gray-400' : 'bg-blue-500'
+                                }`}>
+                                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <p className={`text-sm font-semibold ${isExcluded ? 'text-gray-600 line-through' : 'text-gray-900'}`}>
+                                    {attachment.originalName}
+                                    {isExcluded && <span className="ml-2 text-xs text-red-600 font-normal">(Excluded)</span>}
+                                  </p>
+                                  <p className="text-xs text-gray-600">
+                                    {formatFileSize(attachment.fileSize)} • {attachment.mimeType}
+                                  </p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-sm font-semibold text-gray-900">{attachment.originalName}</p>
-                                <p className="text-xs text-gray-600">
-                                  {formatFileSize(attachment.fileSize)} • {attachment.mimeType}
-                                </p>
+                              <div className="flex items-center gap-2">
+                                <a
+                                  href={`/api/email/preview?attachmentId=${attachment.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-semibold hover:underline"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    window.open(`/api/email/preview?attachmentId=${attachment.id}`, '_blank');
+                                  }}
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                  </svg>
+                                  Download
+                                </a>
+                                {isExcluded ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setExcludedAttachmentIds(prev => prev.filter(id => id !== attachment.id));
+                                    }}
+                                    className="flex items-center gap-1 text-green-600 hover:text-green-800 text-sm font-semibold hover:underline"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Re-add
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setExcludedAttachmentIds(prev => [...prev, attachment.id]);
+                                    }}
+                                    className="flex items-center gap-1 text-red-600 hover:text-red-800 text-sm font-semibold hover:underline"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    Remove
+                                  </button>
+                                )}
                               </div>
                             </div>
-                            <a
-                              href={`/api/email/preview?attachmentId=${attachment.id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-semibold hover:underline"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                window.open(`/api/email/preview?attachmentId=${attachment.id}`, '_blank');
-                              }}
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                              </svg>
-                              Download
-                            </a>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -1263,7 +1428,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         onOpenChange={setShowSendConfirmation}
         onConfirm={handleSend}
         title="Confirm Email Send"
-        description={`Are you sure you want to send the email for "${selectedTest?.name}" Test?\n\nTo: ${toEmail}${selectedPricingOption ? `\n\nPricing: ${selectedPricingOption.installment} installment${selectedPricingOption.installment !== 1 ? 's' : ''} - ${selectedPricingOption.price.toLocaleString()} ₪` : ''}${ccEmails.trim() ? `\n\nCC: ${replyToEmail}, ${ccEmails}` : `\n\nCC: ${replyToEmail}`}${replyToEmail ? `\n\nReply-To: ${replyToEmail}` : ''}${previewAttachments.length > 0 ? `\n\nTemplate Attachments: ${previewAttachments.length} file(s)` : ''}${temporaryAttachments.length > 0 ? `\n\nAdditional Attachments: ${temporaryAttachments.length} file(s)` : ''}`}
+        description={`Are you sure you want to send the email for "${selectedTest?.name}" Test?\n\nTo: ${toEmail}${selectedPricingOption ? `\n\nPricing: ${selectedPricingOption.installment} installment${selectedPricingOption.installment !== 1 ? 's' : ''} - ${selectedPricingOption.price.toLocaleString()} ₪` : ''}${ccEmails.trim() ? `\n\nCC: ${replyToEmail}, ${ccEmails}` : `\n\nCC: ${replyToEmail}`}${replyToEmail ? `\n\nReply-To: ${replyToEmail}` : ''}${previewAttachments.length > 0 ? `\n\nTemplate Attachments: ${previewAttachments.filter(a => !excludedAttachmentIds.includes(a.id)).length} file(s)${excludedAttachmentIds.length > 0 ? ` (${excludedAttachmentIds.length} excluded)` : ''}` : ''}${temporaryAttachments.length > 0 ? `\n\nAdditional Attachments: ${temporaryAttachments.length} file(s)` : ''}`}
         isSending={sending}
       />
     </div>

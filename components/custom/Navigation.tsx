@@ -72,6 +72,14 @@ const Navigation: FC<NavigationProps> = ({ consultid, onHide }) => {
           <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
         </Link>
 
+        <Link href="/signatures" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
+          <div className="flex items-center">
+            <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
+            <span>Signatures</span>
+          </div>
+          <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
+        </Link>
+
         <Link href="/settings" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
           <div className="flex items-center">
             <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 

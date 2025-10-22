@@ -152,6 +152,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    // Fetch signature based on replyTo email
+    let signatureContent: string | undefined;
+    if (parsed.replyTo) {
+      const signatureRecord = await db.signature.findUnique({
+        where: { email: parsed.replyTo },
+      });
+      if (signatureRecord) {
+        signatureContent = signatureRecord.content;
+      }
+    }
+
     // Render template with placeholders replaced
     let preview = renderTemplate(body, {
       nameOnTemplate: parsed.nameOnTemplate,
@@ -164,6 +175,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       patientName: parsed.patientName,
       clalitText: clalitText || undefined,
       sendClalitInfo: parsed.sendClalitInfo,
+      signature: signatureContent,
       // Optional blood test scheduling fields
       dayOfWeek: parsed.dayOfWeek,
       date: parsed.date,

@@ -1,4 +1,4 @@
-import { SESClient, SendEmailCommand, SendEmailCommandInput, SendRawEmailCommand } from '@aws-sdk/client-ses';
+import { SESClient, SendEmailCommand, SendEmailCommandInput, SendRawEmailCommand, ListVerifiedEmailAddressesCommand } from '@aws-sdk/client-ses';
 
 export interface EmailAttachment {
   filename: string;
@@ -273,5 +273,41 @@ export async function verifySESConfiguration() {
       success: false,
       error: error.message
     };
+  }
+}
+
+// Helper function to get verified email addresses from SES
+export async function getVerifiedSESEmails(): Promise<string[]> {
+  try {
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.AWS_REGION) {
+      console.warn('AWS credentials not configured, returning default email only');
+      return ['agents@progenetics.co.il'];
+    }
+
+    const sesClient = new SESClient({
+      region: process.env.AWS_REGION,
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      },
+    });
+
+    const command = new ListVerifiedEmailAddressesCommand({});
+    const response = await sesClient.send(command);
+
+    let verifiedEmails = response.VerifiedEmailAddresses || [];
+
+    // Ensure agents@progenetics.co.il is always available as fallback
+    if (!verifiedEmails.includes('agents@progenetics.co.il')) {
+      verifiedEmails = ['agents@progenetics.co.il', ...verifiedEmails];
+    }
+
+    console.log(`Retrieved ${verifiedEmails.length} verified email(s) from SES`);
+    return verifiedEmails;
+    
+  } catch (error: any) {
+    console.error('Failed to fetch verified SES emails:', error);
+    // Return default email on error
+    return ['agents@progenetics.co.il'];
   }
 }

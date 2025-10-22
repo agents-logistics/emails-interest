@@ -26,6 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const iformsText = (req.body as any).iformsText as string;
     const iformsLink = (req.body as any).iformsLink as string;
     const temporaryAttachmentIds: string[] = (req.body as any).temporaryAttachmentIds || [];
+    const excludedAttachmentIds: string[] = (req.body as any).excludedAttachmentIds || [];
 
     if (!icreditText || !icreditLink || !iformsText || !iformsLink) {
       return res.status(400).json({ error: "All link texts and URLs are required" });
@@ -50,6 +51,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
     if (!pricingOption) {
       return res.status(400).json({ error: "Invalid combination of installment and price for this test" });
+    }
+
+    // Validate that replyTo email is verified in SES
+    const { getVerifiedSESEmails } = await import('@/lib/ses');
+    const verifiedEmails = await getVerifiedSESEmails();
+    if (!verifiedEmails.includes(parsed.replyTo)) {
+      return res.status(400).json({ 
+        error: `The reply-to email (${parsed.replyTo}) is not verified in AWS SES. Please verify it first or select a verified email address.` 
+      });
     }
 
     // Load template body and get subject/clalitText from template
@@ -95,6 +105,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    // Fetch signature based on replyTo email
+    let signatureContent: string | undefined;
+    const signatureRecord = await db.signature.findUnique({
+      where: { email: parsed.replyTo },
+    });
+    if (signatureRecord) {
+      signatureContent = signatureRecord.content;
+    }
+
     // Render template with placeholders replaced
     let rendered = renderTemplate(body, {
       nameOnTemplate: parsed.nameOnTemplate,
@@ -107,6 +126,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       patientName: parsed.patientName,
       clalitText: clalitText || undefined,
       sendClalitInfo: parsed.sendClalitInfo,
+      signature: signatureContent,
       // Optional blood test scheduling fields
       dayOfWeek: parsed.dayOfWeek,
       date: parsed.date,
@@ -317,7 +337,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const emailSubject = parsed.subject || templateSubject || test.name;
     console.log('emailSubject', emailSubject);
 
-    // Load attachments from template
+    // Load attachments from template (excluding any that are in excludedAttachmentIds)
     let emailAttachments: EmailAttachment[] = [];
     if (parsed.templateId) {
       const template = await db.emailTemplate.findUnique({
@@ -328,6 +348,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       if (template && template.attachments.length > 0) {
         for (const attachment of template.attachments) {
+          // Skip if this attachment is excluded
+          if (excludedAttachmentIds.includes(attachment.id)) {
+            continue;
+          }
           if (fs.existsSync(attachment.filePath)) {
             const fileContent = fs.readFileSync(attachment.filePath);
             emailAttachments.push({
@@ -349,6 +373,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       if (defaultTemplate && defaultTemplate.attachments.length > 0) {
         for (const attachment of defaultTemplate.attachments) {
+          // Skip if this attachment is excluded
+          if (excludedAttachmentIds.includes(attachment.id)) {
+            continue;
+          }
           if (fs.existsSync(attachment.filePath)) {
             const fileContent = fs.readFileSync(attachment.filePath);
             emailAttachments.push({
@@ -427,13 +455,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     try {
       // Send transactional email via Amazon SES
+      // Use replyToEmail as fromEmail so the email appears in sender's Sent folder
       const emailResult = await sendTransactionalEmail({
         to: toRecipients,
         cc: ccRecipients,
         replyTo: replyToEmail,
         subject: emailSubject,
         htmlContent: htmlEmail,
-        fromEmail: 'agents@progenetics.co.il',
+        fromEmail: replyToEmail,
         fromName: 'Progenetics',
         attachments: emailAttachments
       });

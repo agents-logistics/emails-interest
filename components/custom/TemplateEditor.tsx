@@ -48,10 +48,13 @@ type TemplateEditorProps = {
   showPreviewSection?: boolean;
   showConfigurationSection?: boolean;
   showAttachmentsSection?: boolean;
+  showPlaceholdersSection?: boolean;
   attachments?: EmailAttachment[];
   onAttachmentsChange?: (attachments: EmailAttachment[]) => void;
   clalitText?: string;
   onClalitTextChange?: (text: string) => void;
+  placeholder?: string;
+  showRTLToggle?: boolean;
 };
 
 const TemplateEditor: FC<TemplateEditorProps> = ({
@@ -67,10 +70,13 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
   showPreviewSection = true,
   showConfigurationSection = true,
   showAttachmentsSection = true,
+  showPlaceholdersSection = true,
   attachments = [],
   onAttachmentsChange,
   clalitText = '',
   onClalitTextChange,
+  placeholder,
+  showRTLToggle = true,
 }) => {
   // Link dialog state
   const [showLinkDialog, setShowLinkDialog] = useState(false);
@@ -409,23 +415,25 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
               </select>
             </div>
 
-            <div>
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="rtl"
-                  checked={isRTL}
-                  onChange={(e) => onIsRTLChange(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="rtl" className="text-sm font-medium text-gray-700">
-                  Right-to-Left Mode (Hebrew)
-                </label>
+            {showRTLToggle && (
+              <div>
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    id="rtl"
+                    checked={isRTL}
+                    onChange={(e) => onIsRTLChange(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="rtl" className="text-sm font-medium text-gray-700">
+                    Right-to-Left Mode (Hebrew)
+                  </label>
+                </div>
+                <p className="text-xs text-gray-600 mt-2">
+                  ℹ️ Enable for Hebrew content. Use the toolbar direction button to mix RTL/LTR text.
+                </p>
               </div>
-              <p className="text-xs text-gray-600 mt-2">
-                ℹ️ Enable for Hebrew content. Use the toolbar direction button to mix RTL/LTR text.
-              </p>
-            </div>
+            )}
           </div>
         </div>
       )}
@@ -505,56 +513,58 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
         </div>
 
         {/* Token Insertion Section */}
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">
-            Insert Placeholders
-          </h4>
-          <div className="space-y-3">
-            {/* Required Placeholders */}
-            <div>
-              <p className="text-xs font-medium text-gray-600 mb-2">Required Placeholders</p>
-              <div className="flex gap-2 flex-wrap">
-                {REQUIRED_TEMPLATE_TOKENS.map((token) => (
-                  <button
-                    key={token}
-                    type="button"
-                    className="px-3 py-2 text-xs bg-blue-600 text-white border border-blue-700 rounded hover:bg-blue-700 transition-colors font-medium"
-                    onClick={() => insertToken(token)}
-                    title={`Insert ${token} placeholder`}
-                  >
-                    {token}
-                  </button>
-                ))}
+        {showPlaceholdersSection && (
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+            <h4 className="text-sm font-medium text-gray-700 mb-3">
+              Insert Placeholders
+            </h4>
+            <div className="space-y-3">
+              {/* Required Placeholders */}
+              <div>
+                <p className="text-xs font-medium text-gray-600 mb-2">Required Placeholders</p>
+                <div className="flex gap-2 flex-wrap">
+                  {REQUIRED_TEMPLATE_TOKENS.map((token) => (
+                    <button
+                      key={token}
+                      type="button"
+                      className="px-3 py-2 text-xs bg-blue-600 text-white border border-blue-700 rounded hover:bg-blue-700 transition-colors font-medium"
+                      onClick={() => insertToken(token)}
+                      title={`Insert ${token} placeholder`}
+                    >
+                      {token}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Optional Blood Test Scheduling Placeholders */}
+              <div>
+                <p className="text-xs font-medium text-gray-600 mb-2">Blood Test Scheduling (Optional)</p>
+                <div className="flex gap-2 flex-wrap">
+                  {OPTIONAL_TEMPLATE_TOKENS.map((token) => (
+                    <button
+                      key={token}
+                      type="button"
+                      className="px-3 py-2 text-xs bg-green-600 text-white border border-green-700 rounded hover:bg-green-700 transition-colors font-medium"
+                      onClick={() => insertToken(token)}
+                      title={`Insert ${token} placeholder (optional)`}
+                    >
+                      {token}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-            
-            {/* Optional Blood Test Scheduling Placeholders */}
-            <div>
-              <p className="text-xs font-medium text-gray-600 mb-2">Blood Test Scheduling (Optional)</p>
-              <div className="flex gap-2 flex-wrap">
-                {OPTIONAL_TEMPLATE_TOKENS.map((token) => (
-                  <button
-                    key={token}
-                    type="button"
-                    className="px-3 py-2 text-xs bg-green-600 text-white border border-green-700 rounded hover:bg-green-700 transition-colors font-medium"
-                    onClick={() => insertToken(token)}
-                    title={`Insert ${token} placeholder (optional)`}
-                  >
-                    {token}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <p className="text-xs text-gray-600 mt-3">
-            Click to insert placeholders at cursor position. These will be replaced with actual values when sending emails.
-          </p>
-          <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
-            <p className="text-xs text-blue-800">
-              💡 <strong>Tip:</strong> Use the toolbar to format text and insert images. The 🖼️ image button lets you upload images (like signatures). All formatting will be preserved in emails.
+            <p className="text-xs text-gray-600 mt-3">
+              Click to insert placeholders at cursor position. These will be replaced with actual values when sending emails.
             </p>
+            <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
+              <p className="text-xs text-blue-800">
+                💡 <strong>Tip:</strong> Use the toolbar to format text and insert images. The 🖼️ image button lets you upload images (like signatures). All formatting will be preserved in emails.
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Quill Editor */}
         <div className="px-6 py-4">
@@ -576,7 +586,7 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
               onChange={onBodyChange}
               modules={modules}
               formats={formats}
-              placeholder={`Write your email template here...\n\nAvailable placeholders: ${REQUIRED_TEMPLATE_TOKENS.join(', ')}`}
+              placeholder={placeholder || `Write your email template here...\n\nAvailable placeholders: ${REQUIRED_TEMPLATE_TOKENS.join(', ')}`}
               style={{
                 height: '350px',
                 marginBottom: '50px'
