@@ -294,6 +294,23 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
 
     try {
       setPreviewing(true);
+      
+      // Fetch a sample location if the template uses #Location token
+      let sampleLocationId: string | undefined;
+      if (body.includes('#Location')) {
+        try {
+          const locRes = await fetch('/api/bloodTestLocations');
+          if (locRes.ok) {
+            const locData = await locRes.json();
+            if (locData.locations && locData.locations.length > 0) {
+              sampleLocationId = locData.locations[0].id;
+            }
+          }
+        } catch (err) {
+          console.warn('Could not fetch sample location for preview');
+        }
+      }
+      
       const res = await fetch('/api/email/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -306,11 +323,17 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
           price: selectedPreviewPricingOption.price,
           patientName: previewPatientName,
           toEmail: 'preview@example.com',
+          replyTo: 'agents@progenetics.co.il', // Default sample email for preview
           icreditText: selectedPreviewPricingOption.icreditText,
           icreditLink: selectedPreviewPricingOption.icreditLink,
           iformsText: selectedPreviewPricingOption.iformsText,
           iformsLink: selectedPreviewPricingOption.iformsLink,
           sendClalitInfo: previewWithClalit,
+          // Use sample values for optional tokens
+          dayOfWeek: 'Sunday',
+          date: '2025-01-15',
+          hour: '10:00',
+          location: sampleLocationId,
         }),
       });
       const data = await res.json();
@@ -594,7 +617,7 @@ const TemplateEditor: FC<TemplateEditorProps> = ({
             />
           </div>
 
-          {missingTokens.length > 0 && body.trim() && (
+          {missingTokens.length > 0 && body.trim() && showPlaceholdersSection && (
             <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
               <p className="text-sm text-blue-800">
                 <strong>Info:</strong> Not using these placeholders: <span className="font-mono ml-1">{missingTokens.join(', ')}</span>

@@ -87,7 +87,7 @@ export const RegisterForm = () => {
                             <FormControl>
                                 <Input {...field}
                                 disabled={isPending}
-                                placeholder="hi@carevox.ai" type="email" />
+                                placeholder="hi@test.ai" type="email" />
                             </FormControl>   
                             <FormMessage/>                         
                         </FormItem>

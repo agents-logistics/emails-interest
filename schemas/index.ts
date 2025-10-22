@@ -4,8 +4,8 @@ export const LoginSchema = z.object(
     {
         email: z.string()
         .email({ message: "Email is required" })
-        .refine(email => email.endsWith('@carevox.ai'), {
-            message: "Email must be from carevox.ai domain",
+        .refine(email => email.endsWith('@test.ai'), {
+            message: "Email must be from test.ai domain",
         }),
         password: z.string().min(1,{
             message: "Password is required"
@@ -16,8 +16,8 @@ export const LoginSchema = z.object(
 export const RegisterSchema = z.object({
     email: z.string()
         .email({ message: "Email is required" })
-        .refine(email => email.endsWith('@carevox.ai'), {
-            message: "Email must be from carevox.ai domain",
+        .refine(email => email.endsWith('@test.ai'), {
+            message: "Email must be from test.ai domain",
         }),
     password: z.string().min(6, {
         message: "Minimum 6 characters",

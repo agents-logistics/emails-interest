@@ -316,6 +316,7 @@ const AddTemplatesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showN
                 previewNameOnTemplate={previewNameOnTemplate}
                 previewPricingOptionId={previewPricingOptionId}
                 showConfigurationSection={false}
+                showPreviewSection={true}
                 showAttachmentsSection={true}
                 attachments={attachments}
                 onAttachmentsChange={setAttachments}
