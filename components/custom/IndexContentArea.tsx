@@ -159,6 +159,12 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
     return originalTemplate.includes('#ClalitText');
   }, [templates]);
 
+  // Check if template contains Signature placeholder
+  const templateHasSignatureField = useMemo(() => {
+    const originalTemplate = templates.length > 0 ? templates[0].body : '';
+    return originalTemplate.includes('#Signature');
+  }, [templates]);
+
   // Load tests, locations, user session, and CC defaults on mount
   useEffect(() => {
     const load = async () => {
@@ -324,17 +330,17 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
     }
   }, [currentUserEmail, verifiedEmails]);
 
-  // Auto-select signature based on replyToEmail
+  // Auto-select signature based on currentUserEmail
   useEffect(() => {
-    if (replyToEmail && signatures.length > 0) {
-      const matchingSignature = signatures.find(sig => sig.email === replyToEmail);
+    if (currentUserEmail && signatures.length > 0) {
+      const matchingSignature = signatures.find(sig => sig.email === currentUserEmail);
       if (matchingSignature) {
         setSelectedSignatureId(matchingSignature.id);
       } else {
-        setSelectedSignatureId(''); // No signature for this email
+        setSelectedSignatureId(''); // No signature for current user
       }
     }
-  }, [replyToEmail, signatures]);
+  }, [currentUserEmail, signatures]);
 
   // Automatically determine day of week from selected date
   useEffect(() => {
@@ -395,6 +401,12 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         setError('Please select location - it is required by this template');
         return;
       }
+    }
+
+    // Validate signature if template requires it
+    if (templateHasSignatureField && !selectedSignatureId) {
+      setError('Signature is required for this template. Please add a signature for your email.');
+      return;
     }
 
     try {
@@ -514,6 +526,12 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         setError('Please select location - it is required by this template');
         return;
       }
+    }
+
+    // Validate signature if template requires it
+    if (templateHasSignatureField && !selectedSignatureId) {
+      setError('Signature is required for this template. Please add a signature for your email.');
+      return;
     }
 
     try {
@@ -881,36 +899,46 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                     </p>
                   </div>
 
-                  {/* Signature Selector */}
+                  {/* Signature Status Display */}
                   <div>
                     <label className="block text-sm font-semibold mb-2 text-gray-700">
-                      Email Signature
+                      Email Signature Status
                     </label>
-                    {signatures.length === 0 ? (
-                      <div className="w-full border-2 border-gray-200 rounded-lg px-4 py-2.5 bg-gray-50 text-gray-500 font-medium h-11 flex items-center">
-                        No signatures available
-                      </div>
+                    {templateHasSignatureField ? (
+                      // Template requires signature
+                      selectedSignatureId ? (
+                        <div className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold flex items-center gap-2 bg-green-50 text-green-700 border-2 border-green-200">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          Signature available for {currentUserEmail}
+                        </div>
+                      ) : (
+                        <div className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold flex items-center gap-2 bg-red-50 text-red-700 border-2 border-red-200">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          Signature needed for this template. Please make sure signature is added
+                        </div>
+                      )
                     ) : (
-                      <select
-                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all bg-white text-gray-900 font-medium h-11"
-                        value={selectedSignatureId}
-                        onChange={(e) => setSelectedSignatureId(e.target.value)}
-                      >
-                        <option value="">No signature</option>
-                        {signatures.map((sig) => (
-                          <option key={sig.id} value={sig.id}>
-                            {sig.email} - {sig.name}
-                          </option>
-                        ))}
-                      </select>
+                      // Template doesn't require signature - check if user has one anyway
+                      selectedSignatureId ? (
+                        <div className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold flex items-center gap-2 bg-yellow-50 text-yellow-700 border-2 border-yellow-200">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                          Signature available but not needed in the template
+                        </div>
+                      ) : (
+                        <div className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold flex items-center gap-2 bg-yellow-50 text-yellow-700 border-2 border-yellow-200">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                          Signature unavailable but not needed in the template
+                        </div>
+                      )
                     )}
-                    <p className="text-xs text-gray-500 mt-2 ml-1">
-                      {selectedSignatureId 
-                        ? 'Selected signature will replace the #Signature placeholder in your template.'
-                        : signatures.length > 0 
-                          ? 'Select a signature to use, or create one in the Signatures page. Add #Signature placeholder in your template where you want it to appear.'
-                          : 'Create signatures in the Signatures page to add them to your emails. Add #Signature placeholder in your template.'}
-                    </p>
                   </div>
 
                   <div>

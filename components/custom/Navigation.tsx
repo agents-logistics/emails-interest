@@ -7,8 +7,9 @@ import Link from 'next/link';
 type NavigationProps = {
   consultid: string;
   onHide: () => void;
+  userEmail?: string;
 };
-const Navigation: FC<NavigationProps> = ({ consultid, onHide }) => {
+const Navigation: FC<NavigationProps> = ({ consultid, onHide, userEmail }) => {
  
 
   return (
@@ -33,52 +34,58 @@ const Navigation: FC<NavigationProps> = ({ consultid, onHide }) => {
           </div>
           <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
         </Link>
-        <Link href="/addtests" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
-          <div className="flex items-center">
-            <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
-            <span>Add Tests</span>
-          </div>
-          <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
-        </Link>
+        
+        {userEmail === 'dror@progenetics.co.il' && (
+          <>
+            <Link href="/addtests" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
+              <div className="flex items-center">
+                <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
+                <span>Add Tests</span>
+              </div>
+              <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
+            </Link>
 
-        <Link href="/edittests" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
-          <div className="flex items-center">
-            <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
-            <span>Edit Tests</span>
-          </div>
-          <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
-        </Link>
-        <Link href="/addtemplates" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
-          <div className="flex items-center">
-            <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
-            <span>Add or Edit Templates </span>
-          </div>
-          <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
-        </Link>
+            <Link href="/edittests" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
+              <div className="flex items-center">
+                <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
+                <span>Edit Tests</span>
+              </div>
+              <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
+            </Link>
+            
+            <Link href="/addtemplates" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
+              <div className="flex items-center">
+                <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
+                <span>Add or Edit Templates </span>
+              </div>
+              <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
+            </Link>
 
-        <Link href="/bloodTestLocation" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
-          <div className="flex items-center">
-            <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
-            <span>Blood Test Locations</span>
-          </div>
-          <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
-        </Link>
+            <Link href="/bloodTestLocation" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
+              <div className="flex items-center">
+                <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
+                <span>Blood Test Locations</span>
+              </div>
+              <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
+            </Link>
 
-        <Link href="/emailReceipents" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
-          <div className="flex items-center">
-            <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
-            <span>CC Default Emails</span>
-          </div>
-          <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
-        </Link>
+            <Link href="/emailReceipents" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
+              <div className="flex items-center">
+                <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
+                <span>CC Default Emails</span>
+              </div>
+              <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
+            </Link>
 
-        <Link href="/signatures" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
-          <div className="flex items-center">
-            <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
-            <span>Signatures</span>
-          </div>
-          <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
-        </Link>
+            <Link href="/signatures" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
+              <div className="flex items-center">
+                <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
+                <span>Signatures</span>
+              </div>
+              <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
+            </Link>
+          </>
+        )}
 
         <Link href="/settings" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
           <div className="flex items-center">

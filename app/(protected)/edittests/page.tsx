@@ -5,6 +5,8 @@ import EditTestsContentArea from '@/components/custom/EditTestsContentArea';
 
 const EditTestsPage: FC = () => {
   const [showNavigation, setShowNavigation] = useState<boolean>(true);
+  const [userEmail, setUserEmail] = useState<string>('');
+  
   const handleHideNavigation = (): void => {
     setShowNavigation(false);
   };
@@ -13,9 +15,24 @@ const EditTestsPage: FC = () => {
     setShowNavigation(true);
   };
 
+  useEffect(() => {
+    const loadUserSession = async () => {
+      try {
+        const res = await fetch('/api/auth/session');
+        const session = await res.json();
+        if (session?.user?.email) {
+          setUserEmail(session.user.email);
+        }
+      } catch (e: any) {
+        console.error('Failed to load user session:', e);
+      }
+    };
+    loadUserSession();
+  }, []);
+
   return (
     <div className='flex bg-carevox h-screen'>
-      {showNavigation && <Navigation consultid='' onHide={handleHideNavigation} />}
+      {showNavigation && <Navigation consultid='' onHide={handleHideNavigation} userEmail={userEmail} />}
       <EditTestsContentArea onShowNavigation={handleShowNavigation} showNavigation={showNavigation} />
     </div>
   );
