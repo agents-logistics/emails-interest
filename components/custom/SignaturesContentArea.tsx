@@ -31,6 +31,7 @@ const SignaturesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNav
   const [success, setSuccess] = useState<string | undefined>();
   
   // Form state
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [content, setContent] = useState('');
@@ -62,7 +63,7 @@ const SignaturesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNav
     }
   };
 
-  const handleAdd = async () => {
+  const handleSubmit = async () => {
     setError(undefined);
     setSuccess(undefined);
 
@@ -85,8 +86,11 @@ const SignaturesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNav
 
     try {
       setSaving(true);
-      const res = await fetch('/api/signatures', {
-        method: 'POST',
+      const method = editingId ? 'PUT' : 'POST';
+      const endpoint = editingId ? `/api/signatures/${editingId}` : '/api/signatures';
+      
+      const res = await fetch(endpoint, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           email: email.trim(), 
@@ -96,17 +100,24 @@ const SignaturesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNav
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Failed to add signature');
+        setError(data.error || `Failed to ${editingId ? 'update' : 'add'} signature`);
         return;
       }
       
-      setSuccess('Signature added successfully');
-      setEmail('');
-      setName('');
-      setContent('');
+      setSuccess(`Signature ${editingId ? 'updated' : 'added'} successfully`);
+      
+      // Clear form and reset only after adding a new signature
+      if (!editingId) {
+        setEmail('');
+        setName('');
+        setContent('');
+        setEditingId(null);
+      }
+      // When updating, keep the editing state and form populated
+      
       await loadSignatures();
     } catch (e: any) {
-      setError(e?.message || 'Failed to add signature');
+      setError(e?.message || `Failed to ${editingId ? 'update' : 'add'} signature`);
     } finally {
       setSaving(false);
     }
@@ -145,6 +156,24 @@ const SignaturesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNav
     }
   };
 
+  const handleEdit = (signature: Signature) => {
+    setEditingId(signature.id);
+    setEmail(signature.email);
+    setName(signature.name);
+    setContent(signature.content);
+    setError(undefined);
+    setSuccess(undefined);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEmail('');
+    setName('');
+    setContent('');
+    setError(undefined);
+    setSuccess(undefined);
+  };
+
   return (
     <div className={`${styles.customRounded} flex flex-col p-6 bg-gradient-to-br from-gray-50 to-gray-100 w-full h-full overflow-auto`}>
       <div className="w-full flex items-start mb-6">
@@ -164,14 +193,18 @@ const SignaturesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNav
 
         {/* Add New Signature */}
         <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-green-50 to-green-100 border-b border-green-200 px-4 py-3">
+          <div className={`bg-gradient-to-r ${editingId ? 'from-amber-50 to-amber-100 border-amber-200' : 'from-green-50 to-green-100 border-green-200'} border-b px-4 py-3`}>
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center shadow-sm">
+              <div className={`w-8 h-8 ${editingId ? 'bg-amber-600' : 'bg-green-600'} rounded-lg flex items-center justify-center shadow-sm`}>
                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  {editingId ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  )}
                 </svg>
               </div>
-              <h2 className="text-lg font-bold text-gray-800">Add New Signature</h2>
+              <h2 className="text-lg font-bold text-gray-800">{editingId ? 'Edit Signature' : 'Add New Signature'}</h2>
             </div>
           </div>
           
@@ -235,28 +268,43 @@ const SignaturesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNav
               />
             </div>
             
-            <Button
-              onClick={handleAdd}
-              disabled={saving || !email.trim() || !name.trim() || !content.trim()}
-              className="w-full md:w-auto bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
-            >
-              {saving ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Adding...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Add Signature
-                </>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSubmit}
+                disabled={saving || !email.trim() || !name.trim() || !content.trim()}
+                className={`w-full md:w-auto ${editingId ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800' : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800'} text-white`}
+              >
+                {saving ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    {editingId ? 'Updating...' : 'Adding...'}
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {editingId ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      )}
+                    </svg>
+                    {editingId ? 'Update Signature' : 'Add Signature'}
+                  </>
+                )}
+              </Button>
+              {editingId && (
+                <Button
+                  onClick={handleCancelEdit}
+                  variant="outline"
+                  className="w-full md:w-auto"
+                >
+                  Cancel
+                </Button>
               )}
-            </Button>
+            </div>
           </div>
         </div>
 
@@ -310,30 +358,43 @@ const SignaturesContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNav
                         <p className="text-sm text-gray-600">{item.email}</p>
                       </div>
                     </div>
-                    <Button
-                      onClick={() => handleDelete(item)}
-                      disabled={deleting === item.id}
-                      variant="destructive"
-                      size="sm"
-                      className="flex items-center gap-1"
-                    >
-                      {deleting === item.id ? (
-                        <>
-                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Deleting...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                          Delete
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => handleEdit(item)}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Edit
+                      </Button>
+                      <Button
+                        onClick={() => handleDelete(item)}
+                        disabled={deleting === item.id}
+                        variant="destructive"
+                        size="sm"
+                        className="flex items-center gap-1"
+                      >
+                        {deleting === item.id ? (
+                          <>
+                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Deleting...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Delete
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -72,7 +72,6 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
   const [patientName, setPatientName] = useState<string>('');
   const [toEmail, setToEmail] = useState<string>('');
   const [emailSubject, setEmailSubject] = useState<string>('');
-  const [replyToEmail, setReplyToEmail] = useState<string>('');
   const [ccEmails, setCcEmails] = useState<string>('');
   const [ccDefaultEmails, setCcDefaultEmails] = useState<{id: string; name: string; email: string}[]>([]);
   const [sendClalitInfo, setSendClalitInfo] = useState<boolean>(false);
@@ -317,16 +316,11 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTestId]);
 
-  // Check verification status and set default reply-to email
+  // Check verification status
   useEffect(() => {
     if (currentUserEmail && verifiedEmails.length > 0) {
       const isVerified = verifiedEmails.includes(currentUserEmail);
       setIsCurrentUserVerified(isVerified);
-      // Set replyToEmail to current user if verified, else agents@progenetics.co.il
-      setReplyToEmail(isVerified ? currentUserEmail : 'agents@progenetics.co.il');
-    } else if (verifiedEmails.length > 0 && !currentUserEmail) {
-      // No user email, default to agents@progenetics.co.il
-      setReplyToEmail('agents@progenetics.co.il');
     }
   }, [currentUserEmail, verifiedEmails]);
 
@@ -357,6 +351,12 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
     setSuccess(undefined);
     setPreview('');
 
+    // Check if user email is verified first
+    if (!isCurrentUserVerified) {
+      setError('Your email is not verified. Unable to send emails');
+      return;
+    }
+
     if (!selectedTest) {
       setError('Please select a test');
       return;
@@ -373,8 +373,8 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
       setError('Please enter recipient email');
       return;
     }
-    if (!replyToEmail) {
-      setError('Please enter reply-to email');
+    if (!currentUserEmail) {
+      setError('User email not found');
       return;
     }
 
@@ -433,10 +433,10 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         return;
       }
 
-      // Build CC list: always include reply-to email plus any user-specified CCs
+      // Build CC list: always include current user email plus any user-specified CCs
       const ccList = ccEmails.trim() 
-        ? `${replyToEmail}, ${ccEmails}` 
-        : replyToEmail;
+        ? `${currentUserEmail}, ${ccEmails}` 
+        : currentUserEmail;
 
       const res = await fetch('/api/email/preview', {
         method: 'POST',
@@ -451,7 +451,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
           price: selectedPricingOption.price,
           toEmail,
           patientName,
-          replyTo: replyToEmail,
+          replyTo: currentUserEmail,
           ccEmails: ccList,
           icreditText: selectedPricingOption.icreditText,
           icreditLink: selectedPricingOption.icreditLink,
@@ -490,6 +490,12 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
     setSuccess(undefined);
     setShowSendConfirmation(false); // Close the confirmation dialog
 
+    // Check if user email is verified first
+    if (!isCurrentUserVerified) {
+      setError('Your email is not verified. Unable to send emails');
+      return;
+    }
+
     if (!selectedTest) {
       setError('Please select a test');
       return;
@@ -498,7 +504,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
       setError('Please generate the email preview first.');
       return;
     }
-    if (!nameOnTemplate || !selectedPricingOptionId || !toEmail || !replyToEmail) {
+    if (!nameOnTemplate || !selectedPricingOptionId || !toEmail || !currentUserEmail) {
       setError('Please fill all required fields before sending');
       return;
     }
@@ -555,10 +561,10 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
       // Always use JSON - temporary attachments are already uploaded
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       
-      // Build CC list: always include reply-to email plus any user-specified CCs
+      // Build CC list: always include current user email plus any user-specified CCs
       const ccList = ccEmails.trim() 
-        ? `${replyToEmail}, ${ccEmails}` 
-        : replyToEmail;
+        ? `${currentUserEmail}, ${ccEmails}` 
+        : currentUserEmail;
       
       const requestBody = JSON.stringify({
         testId: selectedTest.id,
@@ -570,7 +576,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         price: selectedPricingOption.price,
         toEmail,
         patientName,
-        replyTo: replyToEmail,
+        replyTo: currentUserEmail,
         ccEmails: ccList,
         icreditText: selectedPricingOption.icreditText,
         icreditLink: selectedPricingOption.icreditLink,
@@ -687,7 +693,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                         value={selectedTestId}
                         onChange={(e) => setSelectedTestId(e.target.value)}
                       >
-                        {tests.map((t) => (
+                        {[...tests].sort((a, b) => a.name.localeCompare(b.name)).map((t) => (
                           <option key={t.id} value={t.id}>{t.name}</option>
                         ))}
                       </select>
@@ -870,33 +876,34 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
 
                   <div>
                     <label className="block text-sm font-semibold mb-2 text-gray-700">
-                      Reply-To Email <span className="text-red-500">*</span>
+                      Reply-To Email (Your Email)
                     </label>
-                    <select
-                      className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all bg-white text-gray-900 font-medium h-11"
-                      value={replyToEmail}
-                      onChange={(e) => setReplyToEmail(e.target.value)}
-                    >
-                      {verifiedEmails.length === 0 ? (
-                        <option value="">Loading verified emails...</option>
-                      ) : (
-                        verifiedEmails.map((email) => (
-                          <option key={email} value={email}>{email}</option>
-                        ))
-                      )}
-                    </select>
+                    <div className={`w-full border-2 rounded-lg px-4 py-2.5 font-medium h-11 flex items-center ${
+                      isCurrentUserVerified 
+                        ? 'bg-green-50 border-green-300 text-green-800' 
+                        : 'bg-red-50 border-red-300 text-red-800'
+                    }`}>
+                      <span className="flex items-center gap-2">
+                        {isCurrentUserVerified ? (
+                          <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        {currentUserEmail || 'Loading...'}
+                      </span>
+                    </div>
                     {!isCurrentUserVerified && currentUserEmail && (
-                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="mt-2 p-3 bg-red-50 border-2 border-red-300 rounded-lg">
                         <p className="text-xs text-red-700 font-semibold">
                           ⚠️ Your email ({currentUserEmail}) is not verified in AWS SES. 
-                          Please verify it in the AWS SES dashboard to use it as reply-to email.
+                          Please verify it in the AWS SES dashboard before you can send emails.
                         </p>
                       </div>
                     )}
-                    <p className="text-xs text-gray-500 mt-2 ml-1">
-                      Replies will be sent to this address. The email will be sent FROM this address so it appears in your Sent folder.
-                      {verifiedEmails.length > 0 ? ' Only verified AWS SES emails are shown.' : ''}
-                    </p>
                   </div>
 
                   {/* Signature Status Display */}
@@ -953,7 +960,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                       className="border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all font-medium h-11"
                     />
                     <p className="text-xs text-gray-500 mt-2 ml-1">
-                      Enter email addresses separated by commas, or click preset buttons below. Note: The reply-to email will be automatically CC&apos;d.
+                      Enter email addresses separated by commas, or click preset buttons below. Note: Your email will be automatically CC&apos;d.
                     </p>
                     
                     {ccDefaultEmails.length > 0 && (
@@ -1458,7 +1465,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         onOpenChange={setShowSendConfirmation}
         onConfirm={handleSend}
         title="Confirm Email Send"
-        description={`Are you sure you want to send the email for "${selectedTest?.name}" Test?\n\nTo: ${toEmail}${selectedPricingOption ? `\n\nPricing: ${selectedPricingOption.installment} installment${selectedPricingOption.installment !== 1 ? 's' : ''} - ${selectedPricingOption.price.toLocaleString()} ₪` : ''}${ccEmails.trim() ? `\n\nCC: ${replyToEmail}, ${ccEmails}` : `\n\nCC: ${replyToEmail}`}${replyToEmail ? `\n\nReply-To: ${replyToEmail}` : ''}${previewAttachments.length > 0 ? `\n\nTemplate Attachments: ${previewAttachments.filter(a => !excludedAttachmentIds.includes(a.id)).length} file(s)${excludedAttachmentIds.length > 0 ? ` (${excludedAttachmentIds.length} excluded)` : ''}` : ''}${temporaryAttachments.length > 0 ? `\n\nAdditional Attachments: ${temporaryAttachments.length} file(s)` : ''}`}
+        description={`Are you sure you want to send the email for "${selectedTest?.name}" Test?\n\nTo: ${toEmail}${selectedPricingOption ? `\n\nPricing: ${selectedPricingOption.installment} installment${selectedPricingOption.installment !== 1 ? 's' : ''} - ${selectedPricingOption.price.toLocaleString()} ₪` : ''}${ccEmails.trim() ? `\n\nCC: ${currentUserEmail}, ${ccEmails}` : `\n\nCC: ${currentUserEmail}`}${currentUserEmail ? `\n\nReply-To: ${currentUserEmail}` : ''}${previewAttachments.length > 0 ? `\n\nTemplate Attachments: ${previewAttachments.filter(a => !excludedAttachmentIds.includes(a.id)).length} file(s)${excludedAttachmentIds.length > 0 ? ` (${excludedAttachmentIds.length} excluded)` : ''}` : ''}${temporaryAttachments.length > 0 ? `\n\nAdditional Attachments: ${temporaryAttachments.length} file(s)` : ''}`}
         isSending={sending}
       />
     </div>
