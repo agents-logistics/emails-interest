@@ -324,6 +324,25 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
     }
   }, [currentUserEmail, verifiedEmails]);
 
+  // Reset preview when any form field changes (similar to test selection reset)
+  useEffect(() => {
+    setShowTemplateEditor(false);
+    setEmailContent('');
+  }, [
+    nameOnTemplate,
+    selectedPricingOptionId,
+    patientName,
+    toEmail,
+    emailSubject,
+    ccEmails,
+    sendClalitInfo,
+    selectedSignatureId,
+    bloodTestDayOfWeek,
+    bloodTestDate,
+    bloodTestHour,
+    bloodTestLocation
+  ]);
+
   // Auto-select signature based on currentUserEmail
   useEffect(() => {
     if (currentUserEmail && signatures.length > 0) {
