@@ -391,7 +391,7 @@ const SmartsheetMapsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, sho
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold mb-2 text-gray-700">
-                      "Yes" Value (Optional)
+                      &quot;Yes&quot; Value (Optional)
                     </label>
                     <Input
                       placeholder="e.g., Yes, Y, true"
@@ -406,7 +406,7 @@ const SmartsheetMapsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, sho
 
                   <div>
                     <label className="block text-sm font-semibold mb-2 text-gray-700">
-                      "No" Value (Optional)
+                      &quot;No&quot; Value (Optional)
                     </label>
                     <Input
                       placeholder="e.g., No, N, false"
@@ -428,7 +428,7 @@ const SmartsheetMapsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, sho
                     <div>
                       <p className="text-sm font-semibold text-blue-900">Empty or Unmatched Values</p>
                       <p className="text-xs text-blue-800 mt-1">
-                        If the Clalit status cell is empty or contains a value that doesn't match the configured Yes/No values, 
+                        If the Clalit status cell is empty or contains a value that doesn&apos;t match the configured Yes/No values, 
                         Clalit information WILL BE INCLUDED by default. Matching is case-insensitive.
                       </p>
                     </div>
