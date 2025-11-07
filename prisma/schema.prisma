@@ -113,7 +113,33 @@ model SmartsheetMap {
   defaultDocumentNumber String?
 }
 
+model EmailToolSmartsheetConfig {
+  id                     String   @id @default(cuid())
+  sheetId                String   @unique
+  emailColumnName        String?  // Column to match email addresses (nullable for now)
+  patientNameColumnName  String?  // Column to pull patient name from (nullable for now)
+  testNameColumnName     String?  // Column containing test/service name
+  priceColumnName        String?  // Column containing price value
+  installmentColumnName  String?  // Column containing installment/payment terms count
+  clalitStatusColumnName String?  // Column containing Clalit insurance status (Yes/No)
+  clalitYesValue         String?  // Single value that means "Yes" (has Clalit) - optional
+  clalitNoValue          String?  // Single value that means "No" (no Clalit) - optional
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
 
+model TestNameMapping {
+  id                  String   @id @default(cuid())
+  smartsheetTestName  String   // Test name as it appears in Smartsheet (e.g., "Caris")
+  appTestId           String   // ID of the test in PatientTest table
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  test                PatientTest @relation(fields: [appTestId], references: [id], onDelete: Cascade)
+  
+  @@unique([smartsheetTestName])
+  @@index([appTestId])
+}
 
 model CommonTests {
   test_name                           String   @id
@@ -203,6 +229,7 @@ model PatientTest {
 
   templates     EmailTemplate[]
   pricingOptions TestPricingOption[]
+  testNameMappings TestNameMapping[]
 }
 
 model TestPricingOption {

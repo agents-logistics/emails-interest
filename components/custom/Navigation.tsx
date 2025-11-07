@@ -35,7 +35,7 @@ const Navigation: FC<NavigationProps> = ({ consultid, onHide, userEmail }) => {
           <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
         </Link>
         
-        {userEmail === 'dror@progenetics.co.il' && (
+        { (userEmail === 'agents@progenetics.co.il' || userEmail === 'dror@progenetics.co.il') && (
           <>
             <Link href="/addtests" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
               <div className="flex items-center">
@@ -81,6 +81,14 @@ const Navigation: FC<NavigationProps> = ({ consultid, onHide, userEmail }) => {
               <div className="flex items-center">
                 <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
                 <span>Signatures</span>
+              </div>
+              <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
+            </Link>
+
+            <Link href="/smartsheetmaps" className="consult-history flex items-center justify-between cursor-pointer text-white p-2 rounded-lg text-xs hover:bg-gray-700">
+              <div className="flex items-center">
+                <img src="/images/calle-summary-side.svg" alt="Icon" className="mr-2 icon-small" style={{ width: '12px', height: 'auto', marginRight: '8px' }}  /> 
+                <span>Smartsheet Auto-Populate</span>
               </div>
               <img src="/images/arrow.svg" alt="Icon" className="icon-small" />
             </Link>

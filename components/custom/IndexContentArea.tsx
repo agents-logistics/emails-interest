@@ -1,6 +1,6 @@
 'use client';
 import styles from '@/styles/ContentArea.module.css';
-import React, { FC, useEffect, useMemo, useState } from 'react';
+import React, { FC, useEffect, useMemo, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FormError } from '@/components/form-error';
@@ -8,6 +8,7 @@ import { FormSuccess } from '@/components/form-success';
 import Image from 'next/image';
 import Link from 'next/link';
 import SendEmailConfirmationDialogBox from './SendEmailConfirmationDialogBox';
+import ErrorDialogBox from './ErrorDialogBox';
 import TemplateEditor from './TemplateEditor';
 
 type ContentAreaProps = {
@@ -75,6 +76,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
   const [ccEmails, setCcEmails] = useState<string>('');
   const [ccDefaultEmails, setCcDefaultEmails] = useState<{id: string; name: string; email: string}[]>([]);
   const [sendClalitInfo, setSendClalitInfo] = useState<boolean>(false);
+  const [clalitExplicitlyDisabled, setClalitExplicitlyDisabled] = useState<boolean>(false);
   
   // Verified emails state
   const [verifiedEmails, setVerifiedEmails] = useState<string[]>([]);
@@ -125,9 +127,16 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
   const [loading, setLoading] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [sending, setSending] = useState(false);
+  const [loadingSmartsheet, setLoadingSmartsheet] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [success, setSuccess] = useState<string | undefined>();
   const [showSendConfirmation, setShowSendConfirmation] = useState(false);
+  const [showSmartsheetErrorDialog, setShowSmartsheetErrorDialog] = useState(false);
+  const [smartsheetErrorMessage, setSmartsheetErrorMessage] = useState('');
+  const [smartsheetErrorType, setSmartsheetErrorType] = useState<'error' | 'warning'>('error');
+
+  // Ref to track if we should preserve pricing option (e.g., from Smartsheet pre-population)
+  const preservePricingOptionRef = useRef<string | null>(null);
 
   const selectedTest = useMemo(
     () => tests.find((t) => t.id === selectedTestId),
@@ -163,6 +172,33 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
     const originalTemplate = templates.length > 0 ? templates[0].body : '';
     return originalTemplate.includes('#Signature');
   }, [templates]);
+
+  // Reset form to defaults (used when email changes)
+  const resetFormToDefaults = () => {
+    // Reset to first test
+    if (tests.length > 0) {
+      setSelectedTestId(tests[0].id);
+    }
+    
+    // Clear patient-specific data
+    setPatientName('');
+    setClalitExplicitlyDisabled(false);
+    setSendClalitInfo(false);
+    
+    // Clear pricing option ref
+    preservePricingOptionRef.current = null;
+    
+    // Pricing option will be reset by the test change effect
+    
+    // Clear messages
+    setSuccess(undefined);
+    setError(undefined);
+    
+    // Clear preview
+    setShowTemplateEditor(false);
+    setEmailContent('');
+    setPreview('');
+  };
 
   // Load tests, locations, user session, and CC defaults on mount
   useEffect(() => {
@@ -284,8 +320,17 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         const t = tests.find((x) => x.id === selectedTestId);
         if (t) {
           setNameOnTemplate(t.templateNames[0] || '');
-          // Select the first pricing option by default
-          setSelectedPricingOptionId(t.pricingOptions[0]?.id || '');
+          
+          // Check if we have a preserved pricing option (e.g., from Smartsheet)
+          if (preservePricingOptionRef.current) {
+            // Use the preserved pricing option
+            setSelectedPricingOptionId(preservePricingOptionRef.current);
+            // Clear the ref after using it
+            preservePricingOptionRef.current = null;
+          } else {
+            // Select the first pricing option by default
+            setSelectedPricingOptionId(t.pricingOptions[0]?.id || '');
+          }
         } else {
           setNameOnTemplate('');
           setSelectedPricingOptionId('');
@@ -501,6 +546,165 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
       setError(e?.message || 'Unexpected error generating preview');
     } finally {
       setPreviewing(false);
+    }
+  };
+
+  const handleFetchFromSmartsheet = async () => {
+    if (!toEmail) return;
+    
+    setLoadingSmartsheet(true);
+    setError(undefined);
+    setSuccess(undefined);
+    
+    try {
+      const res = await fetch('/api/fetchPatientFromSmartsheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: toEmail })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        setSmartsheetErrorMessage(data.error || 'Failed to fetch from Smartsheet');
+        setSmartsheetErrorType('error');
+        setShowSmartsheetErrorDialog(true);
+        return;
+      }
+      
+      if (!data.found) {
+        setSmartsheetErrorMessage(data.error || 'No patient found with this email in Smartsheet');
+        setSmartsheetErrorType('error');
+        setShowSmartsheetErrorDialog(true);
+        return;
+      }
+      
+      // Clear previous data to avoid persistence issues
+      setPatientName('');
+      setClalitExplicitlyDisabled(false);
+      setSendClalitInfo(false);
+      // Clear pricing option ref to prevent stale data
+      preservePricingOptionRef.current = null;
+      
+      // Populate patient name if available
+      if (data.patientName) {
+        setPatientName(data.patientName);
+      }
+      
+      // Handle Clalit status if available
+      if (data.clalitStatus !== undefined && data.clalitStatus !== null) {
+        // If clalitStatus is true (Yes), show Clalit info and allow user to toggle
+        if (data.clalitStatus === true) {
+          setSendClalitInfo(true);
+          setClalitExplicitlyDisabled(false);
+        }
+        // If clalitStatus is false (No), hide Clalit section completely (like when template has no tag)
+        else if (data.clalitStatus === false) {
+          setSendClalitInfo(false);
+          setClalitExplicitlyDisabled(true); // This will hide the entire Clalit section
+        }
+      }
+      // If clalitStatus is null/undefined (empty), default to true (include Clalit info) and allow toggle
+      else {
+        setSendClalitInfo(true);
+        setClalitExplicitlyDisabled(false);
+      }
+      
+      // Handle test name mapping
+      let autoSelectedTest: PatientTest | undefined;
+      
+      if (data.testId) {
+        // Mapping found - auto-select the test
+        autoSelectedTest = tests.find(t => t.id === data.testId);
+        
+        // Handle pricing option auto-selection BEFORE changing the test
+        if (data.price !== undefined && data.price !== null && data.installment !== undefined && data.installment !== null) {
+          if (autoSelectedTest) {
+            console.log('Looking for pricing option:', { price: data.price, installment: data.installment, priceType: typeof data.price, installmentType: typeof data.installment });
+            console.log('Available pricing options:', autoSelectedTest.pricingOptions.map(opt => ({ id: opt.id, price: opt.price, installment: opt.installment, priceType: typeof opt.price, installmentType: typeof opt.installment })));
+            
+            const matchingPricingOption = autoSelectedTest.pricingOptions.find(
+              opt => Number(opt.price) === Number(data.price) && Number(opt.installment) === Number(data.installment)
+            );
+            
+            if (matchingPricingOption) {
+              console.log('Found matching pricing option:', matchingPricingOption.id);
+              // Store the pricing option in ref so the useEffect can use it
+              preservePricingOptionRef.current = matchingPricingOption.id;
+            } else {
+              console.log('No matching pricing option found - will default to first');
+              // No match found - ref is already null, useEffect will default to first option
+            }
+          }
+        } else {
+          // No pricing data from Smartsheet - ref is already null, useEffect will default to first option
+          console.log('No pricing data from Smartsheet - will default to first option');
+        }
+        
+        // Now change the test - the useEffect will use the preserved pricing option or default to first
+        setSelectedTestId(data.testId);
+      } else if (data.unmappedTestName) {
+        // No mapping found - show warning dialog
+        setSmartsheetErrorMessage(
+          `Test "${data.unmappedTestName}" found in Smartsheet but no mapping configured.\n\n` +
+          `Please select the test manually or add a mapping in Smartsheet Maps page.`
+        );
+        setSmartsheetErrorType('warning');
+        setShowSmartsheetErrorDialog(true);
+        // Don't return here, still populate other fields
+      } else {
+        // No test mapping, but we might still have pricing data for current test
+        if (data.price !== undefined && data.price !== null && data.installment !== undefined && data.installment !== null) {
+          if (selectedTest) {
+            console.log('Looking for pricing option in current test:', { price: data.price, installment: data.installment });
+            console.log('Available pricing options:', selectedTest.pricingOptions.map(opt => ({ id: opt.id, price: opt.price, installment: opt.installment })));
+            
+            const matchingPricingOption = selectedTest.pricingOptions.find(
+              opt => Number(opt.price) === Number(data.price) && Number(opt.installment) === Number(data.installment)
+            );
+            
+            if (matchingPricingOption) {
+              console.log('Found matching pricing option:', matchingPricingOption.id);
+              setSelectedPricingOptionId(matchingPricingOption.id);
+            } else {
+              console.log('No matching pricing option found - resetting to first option');
+              // No match found, reset to first pricing option
+              setSelectedPricingOptionId(selectedTest.pricingOptions[0]?.id || '');
+            }
+          }
+        } else {
+          // No pricing data from Smartsheet and no test change - reset to first pricing option of current test
+          if (selectedTest) {
+            console.log('No pricing data from Smartsheet - resetting to first option');
+            setSelectedPricingOptionId(selectedTest.pricingOptions[0]?.id || '');
+          }
+        }
+      }
+      
+      // Show success message with what was loaded
+      let successMsg = 'Data loaded from Smartsheet!';
+      const loadedFields: string[] = [];
+      if (data.patientName) loadedFields.push('Patient Name');
+      if (data.testId) loadedFields.push('Test (auto-selected)');
+      if (data.price !== undefined && data.price !== null && data.installment !== undefined && data.installment !== null) {
+        loadedFields.push('Pricing Option (auto-selected)');
+      }
+      if (data.clalitStatus !== undefined && data.clalitStatus !== null) loadedFields.push('Clalit Status');
+      
+      if (loadedFields.length > 0) {
+        successMsg += ' Loaded: ' + loadedFields.join(', ');
+      }
+      
+      // Only set success if there's no error (from unmapped test)
+      if (!data.unmappedTestName) {
+        setSuccess(successMsg);
+      }
+    } catch (e: any) {
+      setSmartsheetErrorMessage(e?.message || 'Failed to connect to Smartsheet');
+      setSmartsheetErrorType('error');
+      setShowSmartsheetErrorDialog(true);
+    } finally {
+      setLoadingSmartsheet(false);
     }
   };
 
@@ -852,13 +1056,45 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                       <Input
                         placeholder="patient@example.com"
                         value={toEmail}
-                        onChange={(e) => setToEmail(e.target.value)}
+                        onChange={(e) => {
+                          const newEmail = e.target.value;
+                          setToEmail(newEmail);
+                          // Reset form immediately when email changes
+                          if (newEmail !== toEmail) {
+                            resetFormToDefaults();
+                          }
+                        }}
                         className="border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all font-medium h-11"
                         type="email"
                       />
                       <p className="text-xs text-gray-500 mt-2 ml-1">
                         Primary recipient email address. You can add CC recipients in the Email Settings section below.
                       </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleFetchFromSmartsheet}
+                        disabled={!toEmail || loadingSmartsheet}
+                        className="mt-3 border-2 border-blue-300 hover:bg-blue-50 text-blue-700 font-semibold"
+                      >
+                        {loadingSmartsheet ? (
+                          <>
+                            <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Fetching from Smartsheet...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Pre-populate from Smartsheet
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -1112,7 +1348,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                 })()}
 
             {/* Insurance Information Section - Full Width - Conditionally Rendered */}
-            {templateHasClalitField && (
+            {templateHasClalitField && !clalitExplicitlyDisabled && (
               <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
                 <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 border-b border-indigo-200 px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -1155,7 +1391,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
             )}
 
             <FormError message={error} />
-            {success && (
+            {success && success.includes('Email sent successfully') && (
               <div className="bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-xl p-4 shadow-sm">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
@@ -1185,6 +1421,9 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                   </Button>
                 </div>
               </div>
+            )}
+            {success && !success.includes('Email sent successfully') && (
+              <FormSuccess message={success} />
             )}
 
             {!success && (
@@ -1486,6 +1725,14 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         title="Confirm Email Send"
         description={`Are you sure you want to send the email for "${selectedTest?.name}" Test?\n\nTo: ${toEmail}${selectedPricingOption ? `\n\nPricing: ${selectedPricingOption.installment} installment${selectedPricingOption.installment !== 1 ? 's' : ''} - ${selectedPricingOption.price.toLocaleString()} ₪` : ''}${ccEmails.trim() ? `\n\nCC: ${currentUserEmail}, ${ccEmails}` : `\n\nCC: ${currentUserEmail}`}${currentUserEmail ? `\n\nReply-To: ${currentUserEmail}` : ''}${previewAttachments.length > 0 ? `\n\nTemplate Attachments: ${previewAttachments.filter(a => !excludedAttachmentIds.includes(a.id)).length} file(s)${excludedAttachmentIds.length > 0 ? ` (${excludedAttachmentIds.length} excluded)` : ''}` : ''}${temporaryAttachments.length > 0 ? `\n\nAdditional Attachments: ${temporaryAttachments.length} file(s)` : ''}`}
         isSending={sending}
+      />
+
+      <ErrorDialogBox
+        open={showSmartsheetErrorDialog}
+        onOpenChange={setShowSmartsheetErrorDialog}
+        title={smartsheetErrorType === 'error' ? 'Smartsheet Error' : 'Smartsheet Warning'}
+        message={smartsheetErrorMessage}
+        type={smartsheetErrorType}
       />
     </div>
   );
