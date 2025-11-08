@@ -110,7 +110,7 @@ export const EmailPreviewSchema = z
     installment: z.number(),
     price: z.number(),
     toEmail: z.string().email(),
-    patientName: z.string().min(1),
+    patientName: z.string().optional(),
     replyTo: z.string().email({ message: "Reply-to email is required" }),
     ccEmails: z.string().optional(),
     sendClalitInfo: z.boolean().optional().default(false),

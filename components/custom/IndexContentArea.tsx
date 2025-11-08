@@ -429,10 +429,6 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
       setError('Please select Name on Template and Pricing Option');
       return;
     }
-    if (!patientName) {
-      setError('Please enter patient name');
-      return;
-    }
     if (!toEmail) {
       setError('Please enter recipient email');
       return;
@@ -1040,10 +1036,10 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-semibold mb-2 text-gray-700">
-                        Patient Name
+                        Patient Name (Optional)
                       </label>
                       <Input
-                        placeholder="Enter patient full name"
+                        placeholder="Enter patient full name (optional)"
                         value={patientName}
                         onChange={(e) => setPatientName(e.target.value)}
                         className="border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all font-medium h-11"
@@ -1430,7 +1426,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
               <div className="flex justify-center">
                 <Button
                   onClick={handleGeneratePreview}
-                  disabled={previewing || loading || !selectedTestId || !selectedPricingOptionId || !patientName || !toEmail}
+                  disabled={previewing || loading || !selectedTestId || !selectedPricingOptionId || !toEmail}
                   size="lg"
                   className="px-10 py-6 text-base font-bold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-200"
                 >
@@ -1691,7 +1687,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
               <div className="flex justify-center pt-4">
                 <Button
                   onClick={() => setShowSendConfirmation(true)}
-                  disabled={sending || !selectedTestId || !emailContent.trim() || !selectedPricingOptionId || !patientName || !toEmail}
+                  disabled={sending || !selectedTestId || !emailContent.trim() || !selectedPricingOptionId || !toEmail}
                   size="lg"
                   className="px-10 py-6 text-base font-bold bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transition-all duration-200"
                 >
