@@ -33,6 +33,7 @@ const SmartsheetMapsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, sho
   const [clalitStatusColumnName, setClalitStatusColumnName] = useState('');
   const [clalitYesValue, setClalitYesValue] = useState('');
   const [clalitNoValue, setClalitNoValue] = useState('');
+  const [emailSentDateColumnName, setEmailSentDateColumnName] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -66,6 +67,7 @@ const SmartsheetMapsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, sho
           setClalitStatusColumnName(data.config.clalitStatusColumnName || '');
           setClalitYesValue(data.config.clalitYesValue || '');
           setClalitNoValue(data.config.clalitNoValue || '');
+          setEmailSentDateColumnName(data.config.emailSentDateColumnName || '');
         }
       } catch (e: any) {
         console.error('Failed to load configuration:', e);
@@ -198,6 +200,7 @@ const SmartsheetMapsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, sho
           clalitStatusColumnName: clalitStatusColumnName.trim() || null,
           clalitYesValue: clalitYesValue.trim() || null,
           clalitNoValue: clalitNoValue.trim() || null,
+          emailSentDateColumnName: emailSentDateColumnName.trim() || null,
         }),
       });
 
@@ -310,6 +313,21 @@ const SmartsheetMapsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, sho
                   />
                   <p className="text-xs text-gray-500 mt-2 ml-1">
                     Column name in Smartsheet to pull patient names from
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">
+                    Email Sent Date Column Name
+                  </label>
+                  <Input
+                    placeholder="e.g., Date email sent"
+                    value={emailSentDateColumnName}
+                    onChange={(e) => setEmailSentDateColumnName(e.target.value)}
+                    className="border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all font-medium h-11"
+                  />
+                  <p className="text-xs text-gray-500 mt-2 ml-1">
+                    Column name in Smartsheet where email sent date will be recorded (dd/mm/yyyy format)
                   </p>
                 </div>
               </div>

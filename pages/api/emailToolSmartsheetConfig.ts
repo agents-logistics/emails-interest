@@ -24,7 +24,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         installmentColumnName,
         clalitStatusColumnName,
         clalitYesValue,
-        clalitNoValue
+        clalitNoValue,
+        emailSentDateColumnName
       } = req.body;
 
       // Validate that sheetId is provided
@@ -50,6 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             clalitStatusColumnName: clalitStatusColumnName?.trim() || null,
             clalitYesValue: clalitYesValue?.trim() || null,
             clalitNoValue: clalitNoValue?.trim() || null,
+            emailSentDateColumnName: emailSentDateColumnName?.trim() || null,
           },
         });
       } else {
@@ -65,6 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             clalitStatusColumnName: clalitStatusColumnName?.trim() || null,
             clalitYesValue: clalitYesValue?.trim() || null,
             clalitNoValue: clalitNoValue?.trim() || null,
+            emailSentDateColumnName: emailSentDateColumnName?.trim() || null,
           },
         });
       }

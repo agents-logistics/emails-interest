@@ -5,6 +5,105 @@ import { db } from "@/lib/db";
 import { EmailPreviewSchema, REQUIRED_TEMPLATE_TOKENS } from "@/schemas";
 import { renderTemplate } from "@/lib/utils";
 import { sendTransactionalEmail, EmailAttachment } from "@/lib/ses";
+const client = require('smartsheet');
+
+const smartsheet = client.createClient({
+  accessToken: process.env.SMARTSHEET_API_TOKEN,
+  logLevel: 'info',
+});
+
+// Helper function to build column map
+const getColMap = (sheet: any) => {
+  const map = new Map<string, number>();
+  sheet.columns.forEach((c: any) => map.set(c.title, c.id));
+  return map;
+};
+
+// Helper function to update Smartsheet with email sent date
+async function updateSmartsheetEmailSentDate(email: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Get configuration from database
+    const config = await db.emailToolSmartsheetConfig.findFirst();
+
+    // If no config or required fields not configured, skip silently
+    if (!config || !config.sheetId || !config.emailColumnName || !config.emailSentDateColumnName) {
+      return { success: true }; // Skip silently - not an error
+    }
+
+    // Fetch the sheet from Smartsheet
+    const sheet = await smartsheet.sheets.getSheet({ id: config.sheetId });
+    const colmap = getColMap(sheet);
+
+    // Get column IDs
+    const emailColId = colmap.get(config.emailColumnName);
+    const emailSentDateColId = colmap.get(config.emailSentDateColumnName);
+
+    if (!emailColId || !emailSentDateColId) {
+      return { 
+        success: false, 
+        error: `Required columns not found in Smartsheet. Email column: ${config.emailColumnName}, Email sent date column: ${config.emailSentDateColumnName}` 
+      };
+    }
+
+    // Search for matching rows
+    const matchingRows: any[] = [];
+    
+    for (const row of sheet.rows) {
+      const emailCell = row.cells.find((c: any) => c.columnId === emailColId);
+      const emailValue = emailCell?.value;
+      
+      if (emailValue && String(emailValue).trim().toLowerCase() === email.trim().toLowerCase()) {
+        matchingRows.push(row);
+      }
+    }
+
+    // If no match or multiple matches, skip silently
+    if (matchingRows.length === 0) {
+      console.log(`No matching row found in Smartsheet for email: ${email}`);
+      return { success: true }; // Skip silently
+    }
+
+    if (matchingRows.length > 1) {
+      console.log(`Multiple rows found in Smartsheet for email: ${email}`);
+      return { success: true }; // Skip silently
+    }
+
+    // Single match found - update the row with today's date
+    const row = matchingRows[0];
+    
+    // Format date as dd/mm/yyyy
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yyyy = today.getFullYear();
+    const formattedDate = `${dd}/${mm}/${yyyy}`;
+
+    // Build update payload
+    const updatePayload = {
+      sheetId: Number(config.sheetId),
+      body: [
+        {
+          id: Number(row.id),
+          cells: [
+            { columnId: emailSentDateColId, value: formattedDate }
+          ],
+        },
+      ],
+    };
+
+    await smartsheet.sheets.updateRow(updatePayload);
+    console.log(`Successfully updated Smartsheet row ${row.id} with email sent date: ${formattedDate}`);
+
+    return { success: true };
+
+  } catch (error: any) {
+    console.error('Smartsheet update error:', error);
+    return { 
+      success: false, 
+      error: error?.message || 'Failed to update Smartsheet' 
+    };
+  }
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -469,7 +568,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         attachments: emailAttachments
       });
 
-      return res.status(200).json({
+      // After successful email send, try to update Smartsheet
+      const smartsheetResult = await updateSmartsheetEmailSentDate(parsed.toEmail);
+      
+      // Build response object
+      const responseData: any = {
         message: "Email sent successfully via Amazon SES",
         toRecipients: toRecipients,
         ccRecipients: ccRecipients,
@@ -481,7 +584,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         queued: emailResult.queued || 0,
         rejected: emailResult.rejected || 0,
         details: emailResult.results,
-      });
+      };
+
+      // If Smartsheet update failed, add error to response
+      if (!smartsheetResult.success && smartsheetResult.error) {
+        responseData.smartsheetUpdateError = smartsheetResult.error;
+      }
+
+      return res.status(200).json(responseData);
       
     } catch (emailError: any) {
       console.error('Email sending failed:', emailError);

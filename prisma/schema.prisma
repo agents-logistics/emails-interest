@@ -124,6 +124,7 @@ model EmailToolSmartsheetConfig {
   clalitStatusColumnName String?  // Column containing Clalit insurance status (Yes/No)
   clalitYesValue         String?  // Single value that means "Yes" (has Clalit) - optional
   clalitNoValue          String?  // Single value that means "No" (no Clalit) - optional
+  emailSentDateColumnName String? // Column to record email sent date (dd/mm/yyyy format)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 }

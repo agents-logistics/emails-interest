@@ -134,6 +134,8 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
   const [showSmartsheetErrorDialog, setShowSmartsheetErrorDialog] = useState(false);
   const [smartsheetErrorMessage, setSmartsheetErrorMessage] = useState('');
   const [smartsheetErrorType, setSmartsheetErrorType] = useState<'error' | 'warning'>('error');
+  const [showSmartsheetUpdateErrorDialog, setShowSmartsheetUpdateErrorDialog] = useState(false);
+  const [smartsheetUpdateErrorMessage, setSmartsheetUpdateErrorMessage] = useState('');
 
   // Ref to track if we should preserve pricing option (e.g., from Smartsheet pre-population)
   const preservePricingOptionRef = useRef<string | null>(null);
@@ -821,6 +823,12 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
       if (!res.ok) {
         setError(data?.error || 'Failed to send email');
         return;
+      }
+
+      // Check if Smartsheet update failed
+      if (data.smartsheetUpdateError) {
+        setSmartsheetUpdateErrorMessage(data.smartsheetUpdateError);
+        setShowSmartsheetUpdateErrorDialog(true);
       }
 
       // Enhanced success message with more details
@@ -1729,6 +1737,14 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         title={smartsheetErrorType === 'error' ? 'Smartsheet Error' : 'Smartsheet Warning'}
         message={smartsheetErrorMessage}
         type={smartsheetErrorType}
+      />
+
+      <ErrorDialogBox
+        open={showSmartsheetUpdateErrorDialog}
+        onOpenChange={setShowSmartsheetUpdateErrorDialog}
+        title="Email Sent - Smartsheet Update Failed"
+        message={smartsheetUpdateErrorMessage}
+        type="warning"
       />
     </div>
   );
