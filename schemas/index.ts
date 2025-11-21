@@ -61,6 +61,8 @@ export const PricingOptionSchema = z.object({
   icreditLink: z.string().url({ message: "iCredit link must be a valid URL" }).refine(u => /^https?:\/\//i.test(u), { message: "iCredit link must start with http or https" }),
   iformsText: z.string().min(1, { message: "iForms link text is required" }),
   iformsLink: z.string().url({ message: "iForms link must be a valid URL" }).refine(u => /^https?:\/\//i.test(u), { message: "iForms link must start with http or https" }),
+  isGlobalDefault: z.boolean().optional().default(false),
+  isPriceDefault: z.boolean().optional().default(false),
 });
 
 export const TestCreateSchema = z

@@ -20,7 +20,7 @@ const getColMap = (sheet: any) => {
 };
 
 // Helper function to update Smartsheet with email sent date
-async function updateSmartsheetEmailSentDate(email: string): Promise<{ success: boolean; error?: string }> {
+async function updateSmartsheetEmailSentDate(email: string, rowId?: string | number): Promise<{ success: boolean; error?: string }> {
   try {
     // Get configuration from database
     const config = await db.emailToolSmartsheetConfig.findFirst();
@@ -45,45 +45,55 @@ async function updateSmartsheetEmailSentDate(email: string): Promise<{ success: 
       };
     }
 
-    // Search for matching rows
-    const matchingRows: any[] = [];
-    
-    for (const row of sheet.rows) {
-      const emailCell = row.cells.find((c: any) => c.columnId === emailColId);
-      const emailValue = emailCell?.value;
+    let targetRowId: number | undefined;
+
+    if (rowId) {
+      targetRowId = Number(rowId);
+    } else {
+      // Search for matching rows
+      const matchingRows: any[] = [];
       
-      if (emailValue && String(emailValue).trim().toLowerCase() === email.trim().toLowerCase()) {
-        matchingRows.push(row);
+      for (const row of sheet.rows) {
+        const emailCell = row.cells.find((c: any) => c.columnId === emailColId);
+        const emailValue = emailCell?.value;
+        
+        if (emailValue && String(emailValue).trim().toLowerCase() === email.trim().toLowerCase()) {
+          matchingRows.push(row);
+        }
       }
-    }
 
-    // If no match or multiple matches, skip silently
-    if (matchingRows.length === 0) {
-      console.log(`No matching row found in Smartsheet for email: ${email}`);
-      return { success: true }; // Skip silently
-    }
+      // If no match or multiple matches, skip silently
+      if (matchingRows.length === 0) {
+        console.log(`No matching row found in Smartsheet for email: ${email}`);
+        return { success: true }; // Skip silently
+      }
 
-    if (matchingRows.length > 1) {
-      console.log(`Multiple rows found in Smartsheet for email: ${email}`);
-      return { success: true }; // Skip silently
-    }
+      if (matchingRows.length > 1) {
+        console.log(`Multiple rows found in Smartsheet for email: ${email}`);
+        return { success: true }; // Skip silently
+      }
 
-    // Single match found - update the row with today's date
-    const row = matchingRows[0];
+      // Single match found
+      targetRowId = Number(matchingRows[0].id);
+    }
     
-    // Format date as dd/mm/yyyy
+    if (!targetRowId) {
+      return { success: false, error: 'Could not determine row ID to update' };
+    }
+
+    // Format date as YYYY-MM-DD for Smartsheet Date column
     const today = new Date();
     const dd = String(today.getDate()).padStart(2, '0');
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const yyyy = today.getFullYear();
-    const formattedDate = `${dd}/${mm}/${yyyy}`;
+    const formattedDate = `${yyyy}-${mm}-${dd}`;
 
     // Build update payload
     const updatePayload = {
       sheetId: Number(config.sheetId),
       body: [
         {
-          id: Number(row.id),
+          id: targetRowId,
           cells: [
             { columnId: emailSentDateColId, value: formattedDate }
           ],
@@ -92,7 +102,7 @@ async function updateSmartsheetEmailSentDate(email: string): Promise<{ success: 
     };
 
     await smartsheet.sheets.updateRow(updatePayload);
-    console.log(`Successfully updated Smartsheet row ${row.id} with email sent date: ${formattedDate}`);
+    console.log(`Successfully updated Smartsheet row ${targetRowId} with email sent date: ${formattedDate}`);
 
     return { success: true };
 
@@ -569,7 +579,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       // After successful email send, try to update Smartsheet
-      const smartsheetResult = await updateSmartsheetEmailSentDate(parsed.toEmail);
+      const smartsheetRowId = (req.body as any).smartsheetRowId;
+      const smartsheetResult = await updateSmartsheetEmailSentDate(parsed.toEmail, smartsheetRowId);
       
       // Build response object
       const responseData: any = {

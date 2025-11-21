@@ -46,6 +46,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           icreditLink: string;
           iformsText: string;
           iformsLink: string;
+          isGlobalDefault?: boolean;
+          isPriceDefault?: boolean;
         }>;
       };
 
@@ -73,6 +75,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               icreditLink: opt.icreditLink,
               iformsText: opt.iformsText,
               iformsLink: opt.iformsLink,
+              isGlobalDefault: opt.isGlobalDefault || false,
+              isPriceDefault: opt.isPriceDefault || false,
             }))
           }
         },
@@ -101,6 +105,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           icreditLink: string;
           iformsText: string;
           iformsLink: string;
+          isGlobalDefault?: boolean;
+          isPriceDefault?: boolean;
         }>;
       };
 
@@ -134,6 +140,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               icreditLink: opt.icreditLink,
               iformsText: opt.iformsText,
               iformsLink: opt.iformsLink,
+              isGlobalDefault: opt.isGlobalDefault || false,
+              isPriceDefault: opt.isPriceDefault || false,
             }))
           }
         },

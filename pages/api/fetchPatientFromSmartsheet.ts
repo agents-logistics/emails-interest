@@ -14,6 +14,117 @@ const getColMap = (sheet: any) => {
   return map;
 };
 
+// Helper to extract data from a row
+const extractRowData = async (row: any, config: any, colmap: Map<string, number>) => {
+  const result: any = {};
+  
+  const patientNameColId = config.patientNameColumnName ? colmap.get(config.patientNameColumnName) : null;
+  const testNameColId = config.testNameColumnName ? colmap.get(config.testNameColumnName) : null;
+  const priceColId = config.priceColumnName ? colmap.get(config.priceColumnName) : null;
+  const clalitStatusColId = config.clalitStatusColumnName ? colmap.get(config.clalitStatusColumnName) : null;
+  const emailSentDateColId = config.emailSentDateColumnName ? colmap.get(config.emailSentDateColumnName) : null;
+
+  // Extract row ID
+  result.rowId = row.id;
+
+  // Extract patient name
+  if (patientNameColId) {
+    const patientNameCell = row.cells.find((c: any) => c.columnId === patientNameColId);
+    result.patientName = patientNameCell?.value || '';
+  }
+
+  // Extract price
+  if (priceColId) {
+    const priceCell = row.cells.find((c: any) => c.columnId === priceColId);
+    const priceValue = priceCell?.value;
+    // Convert to number if it's a valid number
+    if (priceValue !== undefined && priceValue !== null && priceValue !== '') {
+      const numPrice = Number(priceValue);
+      result.price = isNaN(numPrice) ? null : numPrice;
+    } else {
+      result.price = null;
+    }
+  }
+
+  // Extract Clalit status
+  if (clalitStatusColId) {
+    const clalitCell = row.cells.find((c: any) => c.columnId === clalitStatusColId);
+    const clalitValue = clalitCell?.value;
+    
+    // Parse allowed values
+    const allowedValues = config.clalitAllowedValues 
+      ? config.clalitAllowedValues.split(',').map((v: string) => v.trim().toLowerCase()).filter((v: string) => v.length > 0)
+      : [];
+      
+    // Fallback to legacy Yes value if allowedValues is empty
+    if (allowedValues.length === 0 && config.clalitYesValue) {
+        allowedValues.push(config.clalitYesValue.trim().toLowerCase());
+    }
+
+    // Determine empty behavior (default to true/include if not set)
+    const includeIfEmpty = config.clalitEmptyAction !== false; 
+
+    if (clalitValue !== undefined && clalitValue !== null && String(clalitValue).trim() !== '') {
+      const valueStr = String(clalitValue).trim().toLowerCase();
+      
+      if (allowedValues.length > 0) {
+          if (allowedValues.includes(valueStr)) {
+              result.clalitStatus = true;
+          } else {
+              // Value present but not in allowed list -> Exclude
+              result.clalitStatus = false; 
+          }
+      } else {
+          // No allowed values configured at all. 
+          // Fallback to legacy behavior: 
+          if (config.clalitNoValue && valueStr === config.clalitNoValue.toLowerCase()) {
+              result.clalitStatus = false;
+          } else {
+              // Unmatched value -> Default action
+              result.clalitStatus = includeIfEmpty ? null : false;
+          }
+      }
+    } else {
+      // Empty value
+      result.clalitStatus = includeIfEmpty ? null : false;
+    }
+  }
+
+  // Extract email sent date if configured
+  if (emailSentDateColId) {
+     const dateCell = row.cells.find((c: any) => c.columnId === emailSentDateColId);
+     result.emailSentDate = dateCell?.value;
+  }
+
+  // Extract and map test name
+  if (testNameColId) {
+    const testNameCell = row.cells.find((c: any) => c.columnId === testNameColId);
+    const smartsheetTestName = testNameCell?.value;
+    
+    result.smartsheetTestName = smartsheetTestName; // Save raw name for UI display
+
+    if (smartsheetTestName && String(smartsheetTestName).trim() !== '') {
+      const testNameStr = String(smartsheetTestName).trim();
+      
+      // Look up the mapping in the database
+      const mapping = await db.testNameMapping.findUnique({
+        where: { smartsheetTestName: testNameStr }
+      });
+      
+      if (mapping) {
+        // Mapping found - return the app test ID
+        result.testId = mapping.appTestId;
+      } else {
+        // No mapping found - return the unmapped test name with a warning
+        result.unmappedTestName = testNameStr;
+        result.testMappingWarning = `Test "${testNameStr}" found in Smartsheet but no mapping configured.`;
+      }
+    }
+  }
+
+  return result;
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
@@ -48,11 +159,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Get column IDs
     const emailColId = colmap.get(config.emailColumnName);
-    const patientNameColId = config.patientNameColumnName ? colmap.get(config.patientNameColumnName) : null;
-    const testNameColId = config.testNameColumnName ? colmap.get(config.testNameColumnName) : null;
-    const priceColId = config.priceColumnName ? colmap.get(config.priceColumnName) : null;
-    const installmentColId = config.installmentColumnName ? colmap.get(config.installmentColumnName) : null;
-    const clalitStatusColId = config.clalitStatusColumnName ? colmap.get(config.clalitStatusColumnName) : null;
 
     if (!emailColId) {
       return res.status(400).json({ 
@@ -80,98 +186,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    // If multiple matches, return all of them
     if (matchingRows.length > 1) {
-      return res.status(200).json({ 
-        found: false,
-        error: 'Multiple rows found with this email. Please fill manually.'
+      const matches = await Promise.all(
+        matchingRows.map(row => extractRowData(row, config, colmap))
+      );
+
+      return res.status(200).json({
+        found: true,
+        multipleMatches: true,
+        matches
       });
     }
 
     // Single match found - extract data
     const row = matchingRows[0];
-    const result: any = { found: true };
-
-    // Extract patient name
-    if (patientNameColId) {
-      const patientNameCell = row.cells.find((c: any) => c.columnId === patientNameColId);
-      result.patientName = patientNameCell?.value || '';
-    }
-
-    // Extract price
-    if (priceColId) {
-      const priceCell = row.cells.find((c: any) => c.columnId === priceColId);
-      const priceValue = priceCell?.value;
-      // Convert to number if it's a valid number
-      if (priceValue !== undefined && priceValue !== null && priceValue !== '') {
-        const numPrice = Number(priceValue);
-        result.price = isNaN(numPrice) ? null : numPrice;
-      } else {
-        result.price = null;
-      }
-    }
-
-    // Extract installment
-    if (installmentColId) {
-      const installmentCell = row.cells.find((c: any) => c.columnId === installmentColId);
-      const installmentValue = installmentCell?.value;
-      // Convert to number if it's a valid number
-      if (installmentValue !== undefined && installmentValue !== null && installmentValue !== '') {
-        const numInstallment = Number(installmentValue);
-        result.installment = isNaN(numInstallment) ? null : numInstallment;
-      } else {
-        result.installment = null;
-      }
-    }
-
-    // Extract Clalit status
-    if (clalitStatusColId) {
-      const clalitCell = row.cells.find((c: any) => c.columnId === clalitStatusColId);
-      const clalitValue = clalitCell?.value;
-      
-      if (clalitValue !== undefined && clalitValue !== null && String(clalitValue).trim() !== '') {
-        const valueStr = String(clalitValue).trim();
-        
-        // Check against configured Yes value (case-insensitive)
-        if (config.clalitYesValue && valueStr.toLowerCase() === config.clalitYesValue.toLowerCase()) {
-          result.clalitStatus = true;
-        }
-        // Check against configured No value (case-insensitive)
-        else if (config.clalitNoValue && valueStr.toLowerCase() === config.clalitNoValue.toLowerCase()) {
-          result.clalitStatus = false;
-        }
-        // If no match and value exists, default to null (include Clalit info)
-        else {
-          result.clalitStatus = null;
-        }
-      } else {
-        // Empty value - default to null (include Clalit info)
-        result.clalitStatus = null;
-      }
-    }
-
-    // Extract and map test name
-    if (testNameColId) {
-      const testNameCell = row.cells.find((c: any) => c.columnId === testNameColId);
-      const smartsheetTestName = testNameCell?.value;
-      
-      if (smartsheetTestName && String(smartsheetTestName).trim() !== '') {
-        const testNameStr = String(smartsheetTestName).trim();
-        
-        // Look up the mapping in the database
-        const mapping = await db.testNameMapping.findUnique({
-          where: { smartsheetTestName: testNameStr }
-        });
-        
-        if (mapping) {
-          // Mapping found - return the app test ID
-          result.testId = mapping.appTestId;
-        } else {
-          // No mapping found - return the unmapped test name with a warning
-          result.unmappedTestName = testNameStr;
-          result.testMappingWarning = `Test "${testNameStr}" found in Smartsheet but no mapping configured.`;
-        }
-      }
-    }
+    const result = await extractRowData(row, config, colmap);
+    result.found = true;
 
     return res.status(200).json(result);
 
@@ -182,4 +213,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 }
-

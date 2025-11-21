@@ -27,6 +27,8 @@ type PricingOption = {
   icreditLink: string;
   iformsText: string;
   iformsLink: string;
+  isGlobalDefault?: boolean;
+  isPriceDefault?: boolean;
 };
 
 type PatientTest = {
@@ -43,6 +45,8 @@ type EditablePricingOption = {
   icreditLink: string;
   iformsText: string;
   iformsLink: string;
+  isGlobalDefault: boolean;
+  isPriceDefault: boolean;
 };
 
 // Custom schema for edit form (without pricingOptions validation since we handle it separately)
@@ -67,7 +71,7 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
   const [deleting, setDeleting] = useState(false);
 
   const [pricingOptions, setPricingOptions] = useState<EditablePricingOption[]>([
-    { installment: '', price: '', icreditText: '', icreditLink: '', iformsText: '', iformsLink: '' }
+    { installment: '', price: '', icreditText: '', icreditLink: '', iformsText: '', iformsLink: '', isGlobalDefault: false, isPriceDefault: false }
   ]);
 
   const form = useForm<TestFormValues>({
@@ -100,7 +104,7 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
   }, []);
 
   const addPricingOption = () => {
-    setPricingOptions([...pricingOptions, { installment: '', price: '', icreditText: '', icreditLink: '', iformsText: '', iformsLink: '' }]);
+    setPricingOptions([...pricingOptions, { installment: '', price: '', icreditText: '', icreditLink: '', iformsText: '', iformsLink: '', isGlobalDefault: false, isPriceDefault: false }]);
   };
 
   const removePricingOption = (index: number) => {
@@ -110,8 +114,43 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
   };
 
   const updatePricingOption = (index: number, field: keyof EditablePricingOption, value: any) => {
-    const updated = [...pricingOptions];
-    updated[index] = { ...updated[index], [field]: value };
+    let updated = [...pricingOptions];
+    
+    // Handle special logic for default flags
+    if (field === 'isGlobalDefault' && value === true) {
+      // Ensure only one global default exists
+      updated = updated.map((opt, i) => ({
+        ...opt,
+        isGlobalDefault: i === index
+      }));
+    } else if (field === 'isPriceDefault' && value === true) {
+      // Ensure only one price default per price value
+      const currentPrice = updated[index].price;
+      if (currentPrice !== '') {
+        updated = updated.map((opt, i) => {
+          if (i === index) return { ...opt, isPriceDefault: true };
+          // If price matches (and is valid), unset its default flag
+          if (opt.price === currentPrice) {
+            return { ...opt, isPriceDefault: false };
+          }
+          return opt;
+        });
+      } else {
+        // If price is empty, just toggle (though it shouldn't happen ideally)
+        updated[index] = { ...updated[index], [field]: value };
+      }
+    } else if (field === 'price') {
+      // When price changes, if this was a default, we might need to re-eval? 
+      // For now just update value. But if we change price to match another group, 
+      // we might have two defaults. Let's just update value for now.
+      updated[index] = { ...updated[index], [field]: value };
+      
+      // Optional: Unset isPriceDefault if we change the price?
+      // Let's keep it simple and rely on user to fix.
+    } else {
+      updated[index] = { ...updated[index], [field]: value };
+    }
+    
     setPricingOptions(updated);
   };
 
@@ -135,6 +174,8 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
       icreditLink: opt.icreditLink,
       iformsText: opt.iformsText,
       iformsLink: opt.iformsLink,
+      isGlobalDefault: opt.isGlobalDefault || false,
+      isPriceDefault: opt.isPriceDefault || false,
     })));
   };
 
@@ -162,6 +203,8 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
           icreditLink: opt.icreditLink,
           iformsText: opt.iformsText,
           iformsLink: opt.iformsLink,
+          isGlobalDefault: opt.isGlobalDefault,
+          isPriceDefault: opt.isPriceDefault,
         };
       });
 
@@ -192,7 +235,7 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
       // Reset editing state
       setEditingTest(null);
       form.reset();
-      setPricingOptions([{ installment: '', price: '', icreditText: '', icreditLink: '', iformsText: '', iformsLink: '' }]);
+      setPricingOptions([{ installment: '', price: '', icreditText: '', icreditLink: '', iformsText: '', iformsLink: '', isGlobalDefault: false, isPriceDefault: false }]);
     } catch (e: any) {
       setError(e?.message || 'Unexpected error');
     } finally {
@@ -206,7 +249,7 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
     setError(undefined);
     setSuccess(undefined);
     form.reset();
-    setPricingOptions([{ installment: '', price: '', icreditText: '', icreditLink: '', iformsText: '', iformsLink: '' }]);
+    setPricingOptions([{ installment: '', price: '', icreditText: '', icreditLink: '', iformsText: '', iformsLink: '', isGlobalDefault: false, isPriceDefault: false }]);
   };
 
   // Handle delete button click
@@ -446,6 +489,39 @@ const EditTestsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavi
                               onChange={(e) => updatePricingOption(index, 'iformsLink', e.target.value)}
                               className="border-gray-300 rounded-md px-3 py-2"
                             />
+                          </div>
+
+                          <div className="md:col-span-2 flex items-center gap-6 mt-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <div className="relative flex items-center">
+                                <input
+                                  type="radio"
+                                  name="globalDefault"
+                                  checked={option.isGlobalDefault}
+                                  onChange={() => updatePricingOption(index, 'isGlobalDefault', true)}
+                                  className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                                />
+                              </div>
+                              <div className="text-sm">
+                                <span className="font-medium text-gray-900">Global Default</span>
+                                <p className="text-xs text-gray-500">Use when no pricing data found</p>
+                              </div>
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <div className="relative flex items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={option.isPriceDefault}
+                                  onChange={(e) => updatePricingOption(index, 'isPriceDefault', e.target.checked)}
+                                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                />
+                              </div>
+                              <div className="text-sm">
+                                <span className="font-medium text-gray-900">Default for this Price</span>
+                                <p className="text-xs text-gray-500">Use when multiple options have same price</p>
+                              </div>
+                            </label>
                           </div>
                         </div>
                       </div>

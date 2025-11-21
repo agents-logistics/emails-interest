@@ -21,10 +21,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         patientNameColumnName,
         testNameColumnName,
         priceColumnName,
-        installmentColumnName,
         clalitStatusColumnName,
         clalitYesValue,
         clalitNoValue,
+        clalitAllowedValues,
+        clalitEmptyAction,
         emailSentDateColumnName
       } = req.body;
 
@@ -47,10 +48,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             patientNameColumnName: patientNameColumnName?.trim() || null,
             testNameColumnName: testNameColumnName?.trim() || null,
             priceColumnName: priceColumnName?.trim() || null,
-            installmentColumnName: installmentColumnName?.trim() || null,
             clalitStatusColumnName: clalitStatusColumnName?.trim() || null,
             clalitYesValue: clalitYesValue?.trim() || null,
             clalitNoValue: clalitNoValue?.trim() || null,
+            clalitAllowedValues: clalitAllowedValues?.trim() || null,
+            clalitEmptyAction: typeof clalitEmptyAction === 'boolean' ? clalitEmptyAction : true,
             emailSentDateColumnName: emailSentDateColumnName?.trim() || null,
           },
         });
@@ -63,10 +65,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             patientNameColumnName: patientNameColumnName?.trim() || null,
             testNameColumnName: testNameColumnName?.trim() || null,
             priceColumnName: priceColumnName?.trim() || null,
-            installmentColumnName: installmentColumnName?.trim() || null,
             clalitStatusColumnName: clalitStatusColumnName?.trim() || null,
             clalitYesValue: clalitYesValue?.trim() || null,
             clalitNoValue: clalitNoValue?.trim() || null,
+            clalitAllowedValues: clalitAllowedValues?.trim() || null,
+            clalitEmptyAction: typeof clalitEmptyAction === 'boolean' ? clalitEmptyAction : true,
             emailSentDateColumnName: emailSentDateColumnName?.trim() || null,
           },
         });
@@ -82,4 +85,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Allow', ['GET', 'POST']);
   return res.status(405).end(`Method ${req.method} Not Allowed`);
 }
-

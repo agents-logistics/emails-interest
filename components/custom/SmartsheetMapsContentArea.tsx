@@ -29,10 +29,11 @@ const SmartsheetMapsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, sho
   const [patientNameColumnName, setPatientNameColumnName] = useState('');
   const [testNameColumnName, setTestNameColumnName] = useState('');
   const [priceColumnName, setPriceColumnName] = useState('');
-  const [installmentColumnName, setInstallmentColumnName] = useState('');
   const [clalitStatusColumnName, setClalitStatusColumnName] = useState('');
   const [clalitYesValue, setClalitYesValue] = useState('');
   const [clalitNoValue, setClalitNoValue] = useState('');
+  const [clalitAllowedValues, setClalitAllowedValues] = useState('');
+  const [clalitEmptyAction, setClalitEmptyAction] = useState(true);
   const [emailSentDateColumnName, setEmailSentDateColumnName] = useState('');
   
   const [loading, setLoading] = useState(false);
@@ -63,10 +64,13 @@ const SmartsheetMapsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, sho
           setPatientNameColumnName(data.config.patientNameColumnName || '');
           setTestNameColumnName(data.config.testNameColumnName || '');
           setPriceColumnName(data.config.priceColumnName || '');
-          setInstallmentColumnName(data.config.installmentColumnName || '');
           setClalitStatusColumnName(data.config.clalitStatusColumnName || '');
           setClalitYesValue(data.config.clalitYesValue || '');
           setClalitNoValue(data.config.clalitNoValue || '');
+          const loadedAllowed = data.config.clalitAllowedValues || '';
+          const loadedYes = data.config.clalitYesValue || '';
+          setClalitAllowedValues(loadedAllowed || loadedYes); // Fallback to legacy Yes value
+          setClalitEmptyAction(data.config.clalitEmptyAction !== false); // Default to true if null/undefined
           setEmailSentDateColumnName(data.config.emailSentDateColumnName || '');
         }
       } catch (e: any) {
@@ -196,10 +200,11 @@ const SmartsheetMapsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, sho
           patientNameColumnName: patientNameColumnName.trim() || null,
           testNameColumnName: testNameColumnName.trim() || null,
           priceColumnName: priceColumnName.trim() || null,
-          installmentColumnName: installmentColumnName.trim() || null,
           clalitStatusColumnName: clalitStatusColumnName.trim() || null,
           clalitYesValue: clalitYesValue.trim() || null,
           clalitNoValue: clalitNoValue.trim() || null,
+          clalitAllowedValues: clalitAllowedValues.trim() || null,
+          clalitEmptyAction,
           emailSentDateColumnName: emailSentDateColumnName.trim() || null,
         }),
       });
@@ -360,21 +365,6 @@ const SmartsheetMapsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, sho
                     Column name in Smartsheet containing the price value
                   </p>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700">
-                    Installment Column Name
-                  </label>
-                  <Input
-                    placeholder="e.g., Installments"
-                    value={installmentColumnName}
-                    onChange={(e) => setInstallmentColumnName(e.target.value)}
-                    className="border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all font-medium h-11"
-                  />
-                  <p className="text-xs text-gray-500 mt-2 ml-1">
-                    Column name in Smartsheet containing the number of installments
-                  </p>
-                </div>
               </div>
             </div>
 
@@ -406,50 +396,44 @@ const SmartsheetMapsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, sho
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-gray-700">
-                      &quot;Yes&quot; Value (Optional)
-                    </label>
-                    <Input
-                      placeholder="e.g., Yes, Y, true"
-                      value={clalitYesValue}
-                      onChange={(e) => setClalitYesValue(e.target.value)}
-                      className="border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all font-medium h-11"
-                    />
-                    <p className="text-xs text-gray-500 mt-2 ml-1">
-                      Value indicating patient HAS Clalit insurance
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-gray-700">
-                      &quot;No&quot; Value (Optional)
-                    </label>
-                    <Input
-                      placeholder="e.g., No, N, false"
-                      value={clalitNoValue}
-                      onChange={(e) => setClalitNoValue(e.target.value)}
-                      className="border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all font-medium h-11"
-                    />
-                    <p className="text-xs text-gray-500 mt-2 ml-1">
-                      Value indicating patient DOES NOT have Clalit insurance
-                    </p>
-                  </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">
+                    Values indicating &quot;Yes&quot; (Show Clalit Text)
+                  </label>
+                  <Input
+                    placeholder="e.g., Yes, Y, True, Member (comma separated)"
+                    value={clalitAllowedValues}
+                    onChange={(e) => setClalitAllowedValues(e.target.value)}
+                    className="border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all font-medium h-11"
+                  />
+                  <p className="text-xs text-gray-500 mt-2 ml-1">
+                    Enter multiple values separated by commas. Case-insensitive.
+                  </p>
                 </div>
 
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div>
-                      <p className="text-sm font-semibold text-blue-900">Empty or Unmatched Values</p>
-                      <p className="text-xs text-blue-800 mt-1">
-                        If the Clalit status cell is empty or contains a value that doesn&apos;t match the configured Yes/No values, 
-                        Clalit information WILL BE INCLUDED by default. Matching is case-insensitive.
-                      </p>
-                    </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">
+                    When cell is empty or unmatched:
+                  </label>
+                  <div className="flex gap-4 mt-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={clalitEmptyAction === true}
+                        onChange={() => setClalitEmptyAction(true)}
+                        className="w-4 h-4 text-orange-600 focus:ring-orange-500 border-gray-300"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Include Clalit Info</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={clalitEmptyAction === false}
+                        onChange={() => setClalitEmptyAction(false)}
+                        className="w-4 h-4 text-orange-600 focus:ring-orange-500 border-gray-300"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Exclude Clalit Info</span>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -558,9 +542,9 @@ const SmartsheetMapsContentArea: FC<ContentAreaProps> = ({ onShowNavigation, sho
                             </button>
                           </div>
                         ))}
-                      </div>
-                    )}
-                  </div>
+          </div>
+        )}
+      </div>
 
                   <div className="border-t border-gray-200 pt-4">
                     <h3 className="text-sm font-bold text-gray-800 mb-3">Add New Mapping</h3>

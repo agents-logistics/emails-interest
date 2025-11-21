@@ -120,10 +120,11 @@ model EmailToolSmartsheetConfig {
   patientNameColumnName  String?  // Column to pull patient name from (nullable for now)
   testNameColumnName     String?  // Column containing test/service name
   priceColumnName        String?  // Column containing price value
-  installmentColumnName  String?  // Column containing installment/payment terms count
   clalitStatusColumnName String?  // Column containing Clalit insurance status (Yes/No)
   clalitYesValue         String?  // Single value that means "Yes" (has Clalit) - optional
   clalitNoValue          String?  // Single value that means "No" (no Clalit) - optional
+  clalitAllowedValues    String?  // Comma-separated list of values that mean "Show Clalit Text"
+  clalitEmptyAction      Boolean? @default(true) // true = Show, false = Hide (when cell is empty)
   emailSentDateColumnName String? // Column to record email sent date (dd/mm/yyyy format)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
@@ -242,6 +243,8 @@ model TestPricingOption {
   icreditLink   String
   iformsText    String
   iformsLink    String
+  isGlobalDefault Boolean @default(false) // Use this option when no price is provided
+  isPriceDefault  Boolean @default(false) // Use this option when price matches but multiple options exist
 
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt

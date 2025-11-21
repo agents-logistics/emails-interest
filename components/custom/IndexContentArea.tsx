@@ -9,6 +9,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import SendEmailConfirmationDialogBox from './SendEmailConfirmationDialogBox';
 import ErrorDialogBox from './ErrorDialogBox';
+import SmartsheetRowSelectionDialog from './SmartsheetRowSelectionDialog';
 import TemplateEditor from './TemplateEditor';
 
 type ContentAreaProps = {
@@ -24,6 +25,8 @@ type PricingOption = {
   icreditLink: string;
   iformsText: string;
   iformsLink: string;
+  isGlobalDefault?: boolean;
+  isPriceDefault?: boolean;
 };
 
 type PatientTest = {
@@ -136,6 +139,9 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
   const [smartsheetErrorType, setSmartsheetErrorType] = useState<'error' | 'warning'>('error');
   const [showSmartsheetUpdateErrorDialog, setShowSmartsheetUpdateErrorDialog] = useState(false);
   const [smartsheetUpdateErrorMessage, setSmartsheetUpdateErrorMessage] = useState('');
+  const [showRowSelectionDialog, setShowRowSelectionDialog] = useState(false);
+  const [matchingRows, setMatchingRows] = useState<any[]>([]);
+  const [smartsheetRowId, setSmartsheetRowId] = useState<string | number | null>(null);
 
   // Ref to track if we should preserve pricing option (e.g., from Smartsheet pre-population)
   const preservePricingOptionRef = useRef<string | null>(null);
@@ -189,6 +195,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
     
     // Clear pricing option ref
     preservePricingOptionRef.current = null;
+    setSmartsheetRowId(null);
     
     // Pricing option will be reset by the test change effect
     
@@ -547,6 +554,173 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
     }
   };
 
+  const populateFormWithData = (data: any) => {
+    // Clear previous data to avoid persistence issues
+    setPatientName('');
+    setClalitExplicitlyDisabled(false);
+    setSendClalitInfo(false);
+    setSmartsheetRowId(null);
+    // Clear pricing option ref to prevent stale data
+    preservePricingOptionRef.current = null;
+    
+    // Populate patient name if available
+    if (data.patientName) {
+      setPatientName(data.patientName);
+    }
+
+    // Store row ID if available
+    if (data.rowId) {
+      setSmartsheetRowId(data.rowId);
+    }
+    
+    // Handle Clalit status if available
+    if (data.clalitStatus !== undefined && data.clalitStatus !== null) {
+      // If clalitStatus is true (Yes), show Clalit info and allow user to toggle
+      if (data.clalitStatus === true) {
+        setSendClalitInfo(true);
+        setClalitExplicitlyDisabled(false);
+      }
+      // If clalitStatus is false (No), hide Clalit section completely (like when template has no tag)
+      else if (data.clalitStatus === false) {
+        setSendClalitInfo(false);
+        setClalitExplicitlyDisabled(true); // This will hide the entire Clalit section
+      }
+    }
+    // If clalitStatus is null/undefined (empty), default to true (include Clalit info) and allow toggle
+    else {
+      setSendClalitInfo(true);
+      setClalitExplicitlyDisabled(false);
+    }
+    
+    // Handle test name mapping
+    let autoSelectedTest: PatientTest | undefined;
+    
+    if (data.testId) {
+      // Mapping found - auto-select the test
+      autoSelectedTest = tests.find(t => t.id === data.testId);
+      
+      if (autoSelectedTest) {
+        // Logic for selecting pricing option
+        let targetPricingOptionId: string | null = null;
+
+        // Case 1: Smartsheet provides a Price
+        if (data.price !== undefined && data.price !== null) {
+          const smartsheetPrice = Number(data.price);
+          
+          // Find all options matching that price
+          const matchingOptions = autoSelectedTest.pricingOptions.filter(
+            opt => Number(opt.price) === smartsheetPrice
+          );
+
+          if (matchingOptions.length === 0) {
+            // No match found for this price -> Warning + Global Default
+            setSmartsheetErrorMessage(
+              `Price "${smartsheetPrice}" found in Smartsheet but no matching option exists for test "${autoSelectedTest.name}".\n\n` +
+              `Falling back to default pricing option.`
+            );
+            setSmartsheetErrorType('warning');
+            setShowSmartsheetErrorDialog(true);
+
+            // Fallback to global default
+            const globalDefault = autoSelectedTest.pricingOptions.find(opt => opt.isGlobalDefault);
+            targetPricingOptionId = globalDefault ? globalDefault.id : (autoSelectedTest.pricingOptions[0]?.id || null);
+          } else if (matchingOptions.length === 1) {
+            // Single match -> Select it
+            targetPricingOptionId = matchingOptions[0].id;
+          } else {
+            // Multiple matches -> Look for isPriceDefault
+            const priceDefault = matchingOptions.find(opt => opt.isPriceDefault);
+            if (priceDefault) {
+              targetPricingOptionId = priceDefault.id;
+            } else {
+              // No specific default for this price -> Select first match
+              targetPricingOptionId = matchingOptions[0].id;
+            }
+          }
+        } 
+        // Case 2: Smartsheet provides NO Price
+        else {
+          // Select Global Default
+          const globalDefault = autoSelectedTest.pricingOptions.find(opt => opt.isGlobalDefault);
+          targetPricingOptionId = globalDefault ? globalDefault.id : (autoSelectedTest.pricingOptions[0]?.id || null);
+        }
+
+        if (targetPricingOptionId) {
+          preservePricingOptionRef.current = targetPricingOptionId;
+        }
+      }
+      
+      // Now change the test - the useEffect will use the preserved pricing option or default to first
+      setSelectedTestId(data.testId);
+    } else if (data.unmappedTestName) {
+      // No mapping found - show warning dialog
+      setSmartsheetErrorMessage(
+        `Test "${data.unmappedTestName}" found in Smartsheet but no mapping configured.\n\n` +
+        `Please select the test manually or add a mapping in Smartsheet Maps page.`
+      );
+      setSmartsheetErrorType('warning');
+      setShowSmartsheetErrorDialog(true);
+      // Don't return here, still populate other fields
+    } else {
+      // No test mapping, but we might still have pricing data for current test
+      if (selectedTest) {
+        let targetPricingOptionId: string | null = null;
+
+        if (data.price !== undefined && data.price !== null) {
+          const smartsheetPrice = Number(data.price);
+          const matchingOptions = selectedTest.pricingOptions.filter(
+            opt => Number(opt.price) === smartsheetPrice
+          );
+
+          if (matchingOptions.length === 0) {
+             // Warning already shown if unmapped, but if just no mapping found (and no unmapped name?), 
+             // we might want to show warning about price mismatch on current test?
+             // Let's just follow the selection logic.
+             const globalDefault = selectedTest.pricingOptions.find(opt => opt.isGlobalDefault);
+             targetPricingOptionId = globalDefault ? globalDefault.id : (selectedTest.pricingOptions[0]?.id || null);
+          } else if (matchingOptions.length === 1) {
+             targetPricingOptionId = matchingOptions[0].id;
+          } else {
+             const priceDefault = matchingOptions.find(opt => opt.isPriceDefault);
+             targetPricingOptionId = priceDefault ? priceDefault.id : matchingOptions[0].id;
+          }
+        } else {
+           // No price -> Global default
+           const globalDefault = selectedTest.pricingOptions.find(opt => opt.isGlobalDefault);
+           targetPricingOptionId = globalDefault ? globalDefault.id : (selectedTest.pricingOptions[0]?.id || null);
+        }
+
+        if (targetPricingOptionId) {
+          setSelectedPricingOptionId(targetPricingOptionId);
+        }
+      }
+    }
+    
+    // Show success message with what was loaded
+    let successMsg = 'Data loaded from Smartsheet!';
+    const loadedFields: string[] = [];
+    if (data.patientName) loadedFields.push('Patient Name');
+    if (data.testId) loadedFields.push('Test (auto-selected)');
+    if (data.price !== undefined && data.price !== null) {
+      loadedFields.push('Pricing Option (auto-selected)');
+    }
+    if (data.clalitStatus !== undefined && data.clalitStatus !== null) loadedFields.push('Clalit Status');
+    
+    if (loadedFields.length > 0) {
+      successMsg += ' Loaded: ' + loadedFields.join(', ');
+    }
+    
+    // Only set success if there's no error (from unmapped test)
+    if (!data.unmappedTestName) {
+      setSuccess(successMsg);
+    }
+  };
+
+  const handleRowSelection = (match: any) => {
+    setShowRowSelectionDialog(false);
+    populateFormWithData(match);
+  };
+
   const handleFetchFromSmartsheet = async () => {
     if (!toEmail) return;
     
@@ -576,127 +750,15 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         setShowSmartsheetErrorDialog(true);
         return;
       }
-      
-      // Clear previous data to avoid persistence issues
-      setPatientName('');
-      setClalitExplicitlyDisabled(false);
-      setSendClalitInfo(false);
-      // Clear pricing option ref to prevent stale data
-      preservePricingOptionRef.current = null;
-      
-      // Populate patient name if available
-      if (data.patientName) {
-        setPatientName(data.patientName);
+
+      if (data.multipleMatches) {
+        setMatchingRows(data.matches);
+        setShowRowSelectionDialog(true);
+        return;
       }
       
-      // Handle Clalit status if available
-      if (data.clalitStatus !== undefined && data.clalitStatus !== null) {
-        // If clalitStatus is true (Yes), show Clalit info and allow user to toggle
-        if (data.clalitStatus === true) {
-          setSendClalitInfo(true);
-          setClalitExplicitlyDisabled(false);
-        }
-        // If clalitStatus is false (No), hide Clalit section completely (like when template has no tag)
-        else if (data.clalitStatus === false) {
-          setSendClalitInfo(false);
-          setClalitExplicitlyDisabled(true); // This will hide the entire Clalit section
-        }
-      }
-      // If clalitStatus is null/undefined (empty), default to true (include Clalit info) and allow toggle
-      else {
-        setSendClalitInfo(true);
-        setClalitExplicitlyDisabled(false);
-      }
+      populateFormWithData(data);
       
-      // Handle test name mapping
-      let autoSelectedTest: PatientTest | undefined;
-      
-      if (data.testId) {
-        // Mapping found - auto-select the test
-        autoSelectedTest = tests.find(t => t.id === data.testId);
-        
-        // Handle pricing option auto-selection BEFORE changing the test
-        if (data.price !== undefined && data.price !== null && data.installment !== undefined && data.installment !== null) {
-          if (autoSelectedTest) {
-            console.log('Looking for pricing option:', { price: data.price, installment: data.installment, priceType: typeof data.price, installmentType: typeof data.installment });
-            console.log('Available pricing options:', autoSelectedTest.pricingOptions.map(opt => ({ id: opt.id, price: opt.price, installment: opt.installment, priceType: typeof opt.price, installmentType: typeof opt.installment })));
-            
-            const matchingPricingOption = autoSelectedTest.pricingOptions.find(
-              opt => Number(opt.price) === Number(data.price) && Number(opt.installment) === Number(data.installment)
-            );
-            
-            if (matchingPricingOption) {
-              console.log('Found matching pricing option:', matchingPricingOption.id);
-              // Store the pricing option in ref so the useEffect can use it
-              preservePricingOptionRef.current = matchingPricingOption.id;
-            } else {
-              console.log('No matching pricing option found - will default to first');
-              // No match found - ref is already null, useEffect will default to first option
-            }
-          }
-        } else {
-          // No pricing data from Smartsheet - ref is already null, useEffect will default to first option
-          console.log('No pricing data from Smartsheet - will default to first option');
-        }
-        
-        // Now change the test - the useEffect will use the preserved pricing option or default to first
-        setSelectedTestId(data.testId);
-      } else if (data.unmappedTestName) {
-        // No mapping found - show warning dialog
-        setSmartsheetErrorMessage(
-          `Test "${data.unmappedTestName}" found in Smartsheet but no mapping configured.\n\n` +
-          `Please select the test manually or add a mapping in Smartsheet Maps page.`
-        );
-        setSmartsheetErrorType('warning');
-        setShowSmartsheetErrorDialog(true);
-        // Don't return here, still populate other fields
-      } else {
-        // No test mapping, but we might still have pricing data for current test
-        if (data.price !== undefined && data.price !== null && data.installment !== undefined && data.installment !== null) {
-          if (selectedTest) {
-            console.log('Looking for pricing option in current test:', { price: data.price, installment: data.installment });
-            console.log('Available pricing options:', selectedTest.pricingOptions.map(opt => ({ id: opt.id, price: opt.price, installment: opt.installment })));
-            
-            const matchingPricingOption = selectedTest.pricingOptions.find(
-              opt => Number(opt.price) === Number(data.price) && Number(opt.installment) === Number(data.installment)
-            );
-            
-            if (matchingPricingOption) {
-              console.log('Found matching pricing option:', matchingPricingOption.id);
-              setSelectedPricingOptionId(matchingPricingOption.id);
-            } else {
-              console.log('No matching pricing option found - resetting to first option');
-              // No match found, reset to first pricing option
-              setSelectedPricingOptionId(selectedTest.pricingOptions[0]?.id || '');
-            }
-          }
-        } else {
-          // No pricing data from Smartsheet and no test change - reset to first pricing option of current test
-          if (selectedTest) {
-            console.log('No pricing data from Smartsheet - resetting to first option');
-            setSelectedPricingOptionId(selectedTest.pricingOptions[0]?.id || '');
-          }
-        }
-      }
-      
-      // Show success message with what was loaded
-      let successMsg = 'Data loaded from Smartsheet!';
-      const loadedFields: string[] = [];
-      if (data.patientName) loadedFields.push('Patient Name');
-      if (data.testId) loadedFields.push('Test (auto-selected)');
-      if (data.price !== undefined && data.price !== null && data.installment !== undefined && data.installment !== null) {
-        loadedFields.push('Pricing Option (auto-selected)');
-      }
-      if (data.clalitStatus !== undefined && data.clalitStatus !== null) loadedFields.push('Clalit Status');
-      
-      if (loadedFields.length > 0) {
-        successMsg += ' Loaded: ' + loadedFields.join(', ');
-      }
-      
-      // Only set success if there's no error (from unmapped test)
-      if (!data.unmappedTestName) {
-        setSuccess(successMsg);
-      }
     } catch (e: any) {
       setSmartsheetErrorMessage(e?.message || 'Failed to connect to Smartsheet');
       setSmartsheetErrorType('error');
@@ -789,6 +851,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
       
       const requestBody = JSON.stringify({
         testId: selectedTest.id,
+        smartsheetRowId,
         body: emailContent,
         subject: emailSubject || undefined,
         isRTL: emailIsRTL,
@@ -1737,6 +1800,13 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
         title={smartsheetErrorType === 'error' ? 'Smartsheet Error' : 'Smartsheet Warning'}
         message={smartsheetErrorMessage}
         type={smartsheetErrorType}
+      />
+
+      <SmartsheetRowSelectionDialog
+        open={showRowSelectionDialog}
+        onOpenChange={setShowRowSelectionDialog}
+        matches={matchingRows}
+        onSelect={handleRowSelection}
       />
 
       <ErrorDialogBox
