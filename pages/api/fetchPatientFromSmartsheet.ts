@@ -37,6 +37,9 @@ const extractRowData = async (row: any, config: any, colmap: Map<string, number>
   if (priceColId) {
     const priceCell = row.cells.find((c: any) => c.columnId === priceColId);
     const priceValue = priceCell?.value;
+    
+    result.rawPrice = priceValue;
+
     // Convert to number if it's a valid number
     if (priceValue !== undefined && priceValue !== null && priceValue !== '') {
       const numPrice = Number(priceValue);

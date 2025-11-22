@@ -183,10 +183,8 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
 
   // Reset form to defaults (used when email changes)
   const resetFormToDefaults = () => {
-    // Reset to first test
-    if (tests.length > 0) {
-      setSelectedTestId(tests[0].id);
-    }
+    // Clear test selection
+    setSelectedTestId('');
     
     // Clear patient-specific data
     setPatientName('');
@@ -221,10 +219,6 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
           return;
         }
         setTests(data.tests);
-        if (data.tests.length > 0) {
-          const first = data.tests[0];
-          setSelectedTestId(first.id);
-        }
       } catch (e: any) {
         setError(e?.message || 'Failed to load tests');
       } finally {
@@ -638,7 +632,20 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
             }
           }
         } 
-        // Case 2: Smartsheet provides NO Price
+        // Case 2: Smartsheet provided a Price but it was not a valid number
+        else if (data.rawPrice !== undefined && data.rawPrice !== null && String(data.rawPrice).trim() !== '') {
+           setSmartsheetErrorMessage(
+             `Price value "${data.rawPrice}" found in Smartsheet is not a valid number.\n\n` +
+             `Please fix the price in Smartsheet or select the correct pricing option manually.`
+           );
+           setSmartsheetErrorType('warning');
+           setShowSmartsheetErrorDialog(true);
+
+           // Fallback to global default
+           const globalDefault = autoSelectedTest.pricingOptions.find(opt => opt.isGlobalDefault);
+           targetPricingOptionId = globalDefault ? globalDefault.id : (autoSelectedTest.pricingOptions[0]?.id || null);
+        }
+        // Case 3: Smartsheet provides NO Price
         else {
           // Select Global Default
           const globalDefault = autoSelectedTest.pricingOptions.find(opt => opt.isGlobalDefault);
@@ -673,9 +680,14 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
           );
 
           if (matchingOptions.length === 0) {
-             // Warning already shown if unmapped, but if just no mapping found (and no unmapped name?), 
-             // we might want to show warning about price mismatch on current test?
-             // Let's just follow the selection logic.
+             // Warning about price mismatch
+             setSmartsheetErrorMessage(
+               `Price "${smartsheetPrice}" found in Smartsheet but no matching option exists for test "${selectedTest.name}".\n\n` +
+               `Falling back to default pricing option.`
+             );
+             setSmartsheetErrorType('warning');
+             setShowSmartsheetErrorDialog(true);
+
              const globalDefault = selectedTest.pricingOptions.find(opt => opt.isGlobalDefault);
              targetPricingOptionId = globalDefault ? globalDefault.id : (selectedTest.pricingOptions[0]?.id || null);
           } else if (matchingOptions.length === 1) {
@@ -684,6 +696,17 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
              const priceDefault = matchingOptions.find(opt => opt.isPriceDefault);
              targetPricingOptionId = priceDefault ? priceDefault.id : matchingOptions[0].id;
           }
+        } else if (data.rawPrice !== undefined && data.rawPrice !== null && String(data.rawPrice).trim() !== '') {
+           // Valid price string existed but failed parsing
+           setSmartsheetErrorMessage(
+             `Price value "${data.rawPrice}" found in Smartsheet is not a valid number.\n\n` +
+             `Please fix the price in Smartsheet or select the correct pricing option manually.`
+           );
+           setSmartsheetErrorType('warning');
+           setShowSmartsheetErrorDialog(true);
+
+           const globalDefault = selectedTest.pricingOptions.find(opt => opt.isGlobalDefault);
+           targetPricingOptionId = globalDefault ? globalDefault.id : (selectedTest.pricingOptions[0]?.id || null);
         } else {
            // No price -> Global default
            const globalDefault = selectedTest.pricingOptions.find(opt => opt.isGlobalDefault);
@@ -983,6 +1006,7 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                         value={selectedTestId}
                         onChange={(e) => setSelectedTestId(e.target.value)}
                       >
+                        <option value="">Select a test...</option>
                         {[...tests].sort((a, b) => a.name.localeCompare(b.name)).map((t) => (
                           <option key={t.id} value={t.id}>{t.name}</option>
                         ))}
@@ -1190,6 +1214,9 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                       value={emailSubject}
                       onChange={(e) => setEmailSubject(e.target.value)}
                       className="border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all font-medium h-11"
+                      autoComplete="new-password"
+                      name="email-subject-field"
+                      id="email-subject-field"
                     />
                     <p className="text-xs text-gray-500 mt-2 ml-1">
                       Optional custom subject. If not provided, will use the template&apos;s subject or test name.
@@ -1280,6 +1307,9 @@ const IndexContentArea: FC<ContentAreaProps> = ({ onShowNavigation, showNavigati
                       value={ccEmails}
                       onChange={(e) => setCcEmails(e.target.value)}
                       className="border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all font-medium h-11"
+                      autoComplete="new-password"
+                      name="cc-emails-field"
+                      id="cc-emails-field"
                     />
                     <p className="text-xs text-gray-500 mt-2 ml-1">
                       Enter email addresses separated by commas, or click preset buttons below. Note: Your email will be automatically CC&apos;d.
